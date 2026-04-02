@@ -20,6 +20,7 @@ pub enum OktoToken {
 
     LabelDeclaration(String),
     Identifier(String),
+    MacroArg(String),
 }
 
 impl OktoToken {
@@ -94,7 +95,12 @@ impl OktoToken {
                 let label = source.trim_end_matches(':').to_string();
                 Ok(OktoToken::LabelDeclaration(label))
             }
-
+            // macro args
+            _ if source.starts_with("%") => {
+                let arg_name = source.trim_start_matches('%').to_string();
+                Ok(OktoToken::MacroArg(arg_name))
+            }
+            
             // identifiers
             _ => Ok(OktoToken::Identifier(source.clone())),
         }

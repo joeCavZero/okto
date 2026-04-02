@@ -263,7 +263,7 @@ impl OktoProcessorContext {
                                 if let Some(param_name) = macro_param_name(&body_ptkn.token) {
                                     let arg_index = match macro_args
                                         .iter()
-                                        .position(|p| p == param_name)
+                                        .position(|p| *p == param_name)
                                     {
                                         Some(i) => i,
                                         None => {
@@ -1137,9 +1137,9 @@ fn is_comma_token(token: &OktoToken) -> bool {
     }
 }
 
-fn macro_param_name(token: &OktoToken) -> Option<&str> {
+fn macro_param_name(token: &OktoToken) -> Option<String> {
     match token {
-        OktoToken::Identifier(s) if s.starts_with('%') => Some(s.as_str()),
+        OktoToken::MacroArg(s) => Some(s.clone()),
         _ => None,
     }
 }

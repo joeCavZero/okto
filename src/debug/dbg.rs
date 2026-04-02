@@ -1,7 +1,23 @@
 use colored::Colorize;
 use supports_color::Stream;
 
+use crate::core::*;
+
 pub type OktoError = String;
+
+pub struct OktoPositionedError {
+    pub error: OktoError,
+    pub position: OktoPosition
+}
+
+impl OktoPositionedError {
+    pub fn new(error: OktoError, position: OktoPosition) -> Self {
+        Self { 
+            error, 
+            position,
+        }
+    }
+}
 
 fn get_coloured_okto_name() -> String {
     let text = format!("[OKTO]");

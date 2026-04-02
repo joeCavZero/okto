@@ -1,6 +1,7 @@
 use crate::compiler::lexer::*;
 use crate::core::*;
 
+#[derive(Debug, Clone)]
 pub struct OktoPositionedToken {
     pub token: OktoToken,
     pub position: OktoPosition

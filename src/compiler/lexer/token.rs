@@ -1,8 +1,7 @@
 use crate::debug;
 use crate::core::instruction::*;
 
-use crate::compiler::core::*;
-use crate::compiler::processing::*;
+use crate::compiler::*;
 
 #[derive(Debug, Clone)]
 pub enum OktoLiteral {
@@ -66,6 +65,7 @@ impl OktoToken {
                 match source.as_str() {
                     "@include" => Ok(OktoToken::Processor(OktoProcessor::Include)),
                     "@macro" => Ok(OktoToken::Processor(OktoProcessor::Macro)),
+                    "@once" => Ok(OktoToken::Processor(OktoProcessor::Once)),
                     _ => Err(format!("Unknown processor: {}", source)),
                 }
             }

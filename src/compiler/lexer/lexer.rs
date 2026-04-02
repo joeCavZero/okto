@@ -1,3 +1,10 @@
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
+
+use crate::compiler::*;
+use crate::core::*;
+use crate::debug::*;
+
 #[derive(Debug)]
 pub enum AxolLexerCallbackResponse {
     Token(String),
@@ -5,11 +12,460 @@ pub enum AxolLexerCallbackResponse {
     Char(char),
 }
 
-pub fn lex_source_fn<F>(source: String, mut f: F)
+type OktoMacroTable = HashMap<String, (Vec<String>, Vec<OktoPositionedToken>)>;
+type OktoFileTable = HashMap<usize, String>;
+
+struct OktoProcessorContext {
+    file_table: OktoFileTable,
+    path_to_file_id: HashMap<String, usize>,
+    next_file_id: usize,
+    macro_table: OktoMacroTable,
+    once_set: HashSet<String>,
+    processing_stack: HashSet<String>,
+}
+
+impl OktoProcessorContext {
+    fn new() -> Self {
+        Self {
+            file_table: HashMap::new(),
+            path_to_file_id: HashMap::new(),
+            next_file_id: 0,
+            macro_table: HashMap::new(),
+            once_set: HashSet::new(),
+            processing_stack: HashSet::new(),
+        }
+    }
+
+    fn get_or_create_file_id(&mut self, path: &str) -> usize {
+        if let Some(id) = self.path_to_file_id.get(path) {
+            return *id;
+        }
+
+        let id = self.next_file_id;
+        self.next_file_id += 1;
+
+        self.path_to_file_id.insert(path.to_string(), id);
+        self.file_table.insert(id, path.to_string());
+
+        id
+    }
+
+    fn process_virtual_tokens(
+        &mut self,
+        virtual_path: &str,
+        mut ptokens: Vec<OktoPositionedToken>,
+    ) -> Result<Vec<OktoPositionedToken>, OktoPositionedError> {
+        let file_id = self.get_or_create_file_id(virtual_path);
+        match self.resolve_processors_common(&virtual_path.to_string(), file_id, &mut ptokens, false) {
+            Ok(_) => (),
+            Err(e) => return Err(e),
+        }
+        Ok(ptokens)
+    }
+
+    fn process_file(
+        &mut self,
+        file_path: &Path,
+    ) -> Result<Vec<OktoPositionedToken>, OktoPositionedError> {
+        let absolute_path = match canonicalize_or_fallback(file_path) {
+            Ok(p) => p,
+            Err(e) => return Err(e),
+        };
+        let absolute_path_string = absolute_path.to_string_lossy().to_string();
+
+        if self.processing_stack.contains(&absolute_path_string) {
+            return Err(OktoPositionedError::new(
+                format!(
+                    "Include cycle detected involving '{}'",
+                    absolute_path_string
+                ),
+                OktoPosition::new(None, 0, None),
+            ));
+        }
+
+        let file_id = self.get_or_create_file_id(&absolute_path_string);
+        self.processing_stack.insert(absolute_path_string.clone());
+
+        let mut ptokens =
+            match scan_positioned_tokens_from_file(&absolute_path_string, Some(file_id)) {
+                Ok(v) => v,
+                Err(e) => {
+                    self.processing_stack.remove(&absolute_path_string);
+                    return Err(e);
+                }
+            };
+
+        if let Err(e) =
+            self.resolve_processors_common(&absolute_path_string, file_id, &mut ptokens, true)
+        {
+            self.processing_stack.remove(&absolute_path_string);
+            return Err(e);
+        }
+
+        self.processing_stack.remove(&absolute_path_string);
+        Ok(ptokens)
+    }
+
+    fn resolve_processors_common(
+        &mut self,
+        absolute_file_path: &String,
+        _file_id: usize,
+        ptokens: &mut Vec<OktoPositionedToken>,
+        file_mode: bool,
+    ) -> Result<(), OktoPositionedError> {
+        let mut token_counter: usize = 0;
+
+        while token_counter < ptokens.len() {
+            let current = match ptokens.get(token_counter).cloned() {
+                Some(v) => v,
+                None => break,
+            };
+
+            match current.token.clone() {
+                OktoToken::Processor(OktoProcessor::Include) => {
+                    if !file_mode {
+                        return Err(OktoPositionedError::new(
+                            "You should not use includes in this mode".to_string(),
+                            current.position.clone(),
+                        ));
+                    }
+
+                    let next = match ptokens.get(token_counter + 1).cloned() {
+                        Some(v) => v,
+                        None => {
+                            return Err(OktoPositionedError::new(
+                                "Include directive must be followed by a file path".to_string(),
+                                current.position.clone(),
+                            ));
+                        }
+                    };
+
+                    let include_literal = match next.token.clone() {
+                        OktoToken::Literal(OktoLiteral::String(s)) => s,
+                        _ => {
+                            return Err(OktoPositionedError::new(
+                                "Include directive must be followed by a string literal"
+                                    .to_string(),
+                                next.position.clone(),
+                            ));
+                        }
+                    };
+
+                    let resolved_include_path =
+                        resolve_include_path(absolute_file_path, &include_literal);
+
+                    let included_tokens = match self.process_file(&resolved_include_path) {
+                        Ok(v) => v,
+                        Err(e) => return Err(e),
+                    };
+
+                    ptokens.remove(token_counter); // @include
+                    ptokens.remove(token_counter); // "file"
+
+                    for included in included_tokens.into_iter().rev() {
+                        ptokens.insert(token_counter, included);
+                    }
+
+                    continue;
+                }
+
+                OktoToken::Processor(OktoProcessor::Macro) => {
+                    let name_token = match ptokens.get(token_counter + 1).cloned() {
+                        Some(v) => v,
+                        None => {
+                            return Err(OktoPositionedError::new(
+                                "Macro directive must be followed by an identifier".to_string(),
+                                current.position.clone(),
+                            ));
+                        }
+                    };
+
+                    let macro_name = match identifier_name(&name_token.token) {
+                        Some(s) => s.to_string(),
+                        None => {
+                            return Err(OktoPositionedError::new(
+                                "Macro directive must be followed by an identifier".to_string(),
+                                name_token.position.clone(),
+                            ));
+                        }
+                    };
+
+                    let (macro_args, head_consumed) =
+                        match collect_macro_definition_args(ptokens, token_counter + 2) {
+                            Ok((args, body)) => (args, body),
+                            Err(e) => {
+                                return Err(OktoPositionedError::new(
+                                    format!("Error parsing macro definition: {}", e.error),
+                                    name_token.position.clone(),
+                                ));
+                            }
+                        };
+
+                    let body_start = token_counter + 2 + head_consumed;
+                    let (macro_body, body_consumed) =
+                        collect_macro_body(ptokens, body_start, name_token.position.line);
+
+                    self.macro_table
+                        .insert(macro_name, (macro_args, macro_body));
+
+                    let total_to_remove = 2 + head_consumed + body_consumed;
+                    for _ in 0..total_to_remove {
+                        if token_counter < ptokens.len() {
+                            ptokens.remove(token_counter);
+                        }
+                    }
+
+                    continue;
+                }
+
+                OktoToken::Processor(OktoProcessor::Once) => {
+                    if self.once_set.contains(absolute_file_path) {
+                        ptokens.truncate(token_counter);
+                        continue;
+                    } else {
+                        self.once_set.insert(absolute_file_path.clone());
+                        ptokens.remove(token_counter);
+                        continue;
+                    }
+                }
+
+                _ => {
+                    if let Some(name) = identifier_name(&current.token) {
+                        if let Some((macro_args, macro_body)) = self.macro_table.get(name).cloned()
+                        {
+                            let (call_args, head_consumed) = match collect_macro_call_args(
+                                ptokens,
+                                token_counter + 1,
+                                &current.position,
+                            ) {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    return Err(OktoPositionedError::new(
+                                        format!("Error parsing macro call: {}", e.error),
+                                        current.position.clone(),
+                                    ));
+                                }
+                            };
+
+                            if call_args.len() != macro_args.len() {
+                                return Err(OktoPositionedError::new(
+                                    format!(
+                                        "Macro '{}' called with incorrect number of arguments",
+                                        name
+                                    ),
+                                    current.position.clone(),
+                                ));
+                            }
+
+                            let mut substituted = macro_body.clone();
+
+                            for body_ptkn in substituted.iter_mut() {
+                                if let Some(param_name) = macro_param_name(&body_ptkn.token) {
+                                    let arg_index = match macro_args
+                                        .iter()
+                                        .position(|p| p == param_name)
+                                    {
+                                        Some(i) => i,
+                                        None => {
+                                            return Err(OktoPositionedError::new(
+                                                format!(
+                                                    "Macro argument '{}' not associated with any argument in the macro definition head",
+                                                    param_name
+                                                ),
+                                                body_ptkn.position.clone(),
+                                            ));
+                                        }
+                                    };
+
+                                    *body_ptkn = call_args[arg_index].clone();
+                                }
+                            }
+
+                            for body_ptkn in substituted.iter() {
+                                if let Some(param_name) = macro_param_name(&body_ptkn.token) {
+                                    return Err(OktoPositionedError::new(
+                                        format!(
+                                            "Macro argument '{}' not associated with any argument in the macro definition head",
+                                            param_name
+                                        ),
+                                        body_ptkn.position.clone(),
+                                    ));
+                                }
+                            }
+
+                            let remove_count = 1 + head_consumed;
+                            for _ in 0..remove_count {
+                                if token_counter < ptokens.len() {
+                                    ptokens.remove(token_counter);
+                                }
+                            }
+
+                            for new_ptkn in substituted.into_iter().rev() {
+                                ptokens.insert(token_counter, new_ptkn);
+                            }
+
+                            continue;
+                        }
+                    }
+
+                    token_counter += 1;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+pub fn lex_and_process_file(
+    file: &String,
+) -> Result<Vec<OktoPositionedToken>, OktoPositionedError> {
+    let mut ctx = OktoProcessorContext::new();
+    ctx.process_file(Path::new(file))
+}
+
+pub fn process_tokens(
+    positioned_tokens: Vec<OktoPositionedToken>,
+) -> Result<Vec<OktoPositionedToken>, OktoPositionedError> {
+    let mut ctx = OktoProcessorContext::new();
+    ctx.process_virtual_tokens("<memory>", positioned_tokens)
+}
+
+fn canonicalize_or_fallback(path: &Path) -> Result<PathBuf, OktoPositionedError> {
+    match std::fs::canonicalize(path) {
+        Ok(p) => Ok(p),
+        Err(e) => Err(OktoPositionedError::new(
+            format!("Failed to read file '{}': {}", path.display(), e),
+            OktoPosition::new(None, 0, None),
+        )),
+    }
+}
+
+fn resolve_include_path(including_file_path: &str, include_literal: &str) -> PathBuf {
+    let include_path = PathBuf::from(include_literal);
+
+    if include_path.is_absolute() {
+        return include_path;
+    }
+
+    let including_parent = Path::new(including_file_path)
+        .parent()
+        .unwrap_or(Path::new("."));
+
+    including_parent.join(include_path)
+}
+
+fn identifier_name(token: &OktoToken) -> Option<&str> {
+    match token {
+        OktoToken::Identifier(s) => Some(s.as_str()),
+        _ => None,
+    }
+}
+
+fn is_backslash_token(token: &OktoToken) -> bool {
+    match token {
+        OktoToken::Identifier(s) if s == "\\" => true,
+        _ => false,
+    }
+}
+
+
+fn collect_macro_body(
+    ptokens: &[OktoPositionedToken],
+    start_index: usize,
+    macro_line: usize,
+) -> (Vec<OktoPositionedToken>, usize) {
+    let mut body = Vec::new();
+    let mut i = start_index;
+    let mut current_line = macro_line;
+    let mut continue_to_next_line = false;
+
+    while i < ptokens.len() {
+        let ptkn = &ptokens[i];
+
+        if ptkn.position.line != current_line {
+            if continue_to_next_line {
+                continue_to_next_line = false;
+                current_line = ptkn.position.line;
+            } else {
+                break;
+            }
+        }
+
+        if is_backslash_token(&ptkn.token) {
+            continue_to_next_line = true;
+            i += 1;
+            continue;
+        }
+
+        body.push(ptkn.clone());
+        i += 1;
+    }
+
+    (body, i - start_index)
+}
+
+fn scan_positioned_tokens_from_file(
+    file_path: &str,
+    file_id: Option<usize>,
+) -> Result<Vec<OktoPositionedToken>, OktoPositionedError> {
+    match std::fs::read_to_string(file_path) {
+        Ok(src) => lex_source(&src, file_id),
+        Err(e) => Err(OktoPositionedError::new(
+            format!("Failed to read file '{}': {}", file_path, e),
+            OktoPosition::new(file_id, 0, None),
+        )),
+    }
+}
+
+fn lex_source(
+    source: &String,
+    file_id: Option<usize>,
+) -> Result<Vec<OktoPositionedToken>, OktoPositionedError> {
+    let mut positioned_tokens = Vec::new();
+    let mut err = None;
+
+    lex_source_fn(source, |res, line, column| match res {
+        AxolLexerCallbackResponse::Token(t) => match OktoToken::from(&t) {
+            Ok(tt) => positioned_tokens.push(OktoPositionedToken::new(
+                tt,
+                OktoPosition::new(file_id, line, column),
+            )),
+            Err(e) => {
+                err = Some(OktoPositionedError::new(
+                    e,
+                    OktoPosition::new(file_id, line, column),
+                ));
+            }
+        },
+
+        AxolLexerCallbackResponse::String(s) => {
+            positioned_tokens.push(OktoPositionedToken::new(
+                OktoToken::new_string_literal(&s),
+                OktoPosition::new(file_id, line, column),
+            ));
+        }
+
+        AxolLexerCallbackResponse::Char(c) => {
+            positioned_tokens.push(OktoPositionedToken::new(
+                OktoToken::new_char_literal(&c),
+                OktoPosition::new(file_id, line, column),
+            ));
+        }
+    });
+
+    if let Some(e) = err {
+        return Err(e);
+    }
+
+    Ok(positioned_tokens)
+}
+
+fn lex_source_fn<F>(source: &String, mut f: F)
 where
     F: FnMut(AxolLexerCallbackResponse, usize, Option<usize>),
 {
-    const SPECIAL_TOKENS: &[&str] = &[","];
+    const SPECIAL_TOKENS: &[&str] = &[",", "\\", "(", ")"];
     const TOKEN_ENDERS: &[&str] = &[":"];
     const TOKEN_STARTERS: &[&str] = &["@"];
 
@@ -196,7 +652,11 @@ where
                     &mut line_has_tab_indent,
                 );
 
-                f(AxolLexerCallbackResponse::String(content), start_line, start_col);
+                f(
+                    AxolLexerCallbackResponse::String(content),
+                    start_line,
+                    start_col,
+                );
                 i = end;
                 continue;
             } else {
@@ -211,7 +671,11 @@ where
                     &mut line_has_tab_indent,
                 );
 
-                f(AxolLexerCallbackResponse::String(content), start_line, start_col);
+                f(
+                    AxolLexerCallbackResponse::String(content),
+                    start_line,
+                    start_col,
+                );
                 break;
             }
         }
@@ -275,7 +739,7 @@ where
             }
         }
 
-        // token starter: ex. @define@define => @define + @define
+        // token starter: ex. @macro@macro => @macro + @macro
         if token_acc.is_empty() {
             if let Some(starter) = find_special_at(&src, i, &token_starters) {
                 let start = i;
@@ -326,7 +790,11 @@ where
                 actual_column
             };
 
-            f(AxolLexerCallbackResponse::Token(tok.to_string()), actual_line, col);
+            f(
+                AxolLexerCallbackResponse::Token(tok.to_string()),
+                actual_line,
+                col,
+            );
 
             i += tok.len();
             bump_col_by_str(&mut actual_column, tok);
@@ -390,7 +858,10 @@ fn starts_with_at(s: &str, idx: usize, pat: &str) -> bool {
 }
 
 fn find_special_at<'a>(s: &str, idx: usize, specials: &'a [&'a str]) -> Option<&'a str> {
-    specials.iter().copied().find(|tok| starts_with_at(s, idx, tok))
+    specials
+        .iter()
+        .copied()
+        .find(|tok| starts_with_at(s, idx, tok))
 }
 
 fn find_suffix_in_acc<'a>(acc: &str, suffixes: &'a [&'a str]) -> Option<&'a str> {
@@ -539,7 +1010,10 @@ fn is_ascii_digit(ch: char) -> bool {
 }
 
 fn peek_char_at(s: &str, idx: usize) -> Option<char> {
-    s.get(idx..)?.chars().next()
+    match s.get(idx..) {
+        Some(sub) => sub.chars().next(),
+        None => None,
+    }
 }
 
 fn read_number_at(s: &str, start: usize) -> Option<(String, usize)> {
@@ -547,12 +1021,18 @@ fn read_number_at(s: &str, start: usize) -> Option<(String, usize)> {
     let mut out = String::new();
     let mut saw_digit = false;
 
-    let first = peek_char_at(s, i)?;
+    let first = match peek_char_at(s, i) {
+        Some(ch) => ch,
+        None => return None,
+    };
 
     if is_ascii_digit(first) {
         // ok
     } else if first == '.' {
-        let next = peek_char_at(s, i + 1)?;
+        let next = match peek_char_at(s, i + 1) {
+            Some(ch) => ch,
+            None => return None,
+        };
         if !is_ascii_digit(next) {
             return None;
         }
@@ -634,4 +1114,163 @@ fn read_number_at(s: &str, start: usize) -> Option<(String, usize)> {
 
 fn is_number_suffix(ch: char) -> bool {
     matches!(ch, 'u' | 'i' | 'b' | 'f')
+}
+
+fn is_open_paren_token(token: &OktoToken) -> bool {
+    match token {
+        OktoToken::Identifier(s) => s == "(",
+        _ => false,
+    }
+}
+
+fn is_close_paren_token(token: &OktoToken) -> bool {
+    match token {
+        OktoToken::Identifier(s) => s == ")",
+        _ => false,
+    }
+}
+
+fn is_comma_token(token: &OktoToken) -> bool {
+    match token {
+        OktoToken::Identifier(s) => s == ",",
+        _ => false,
+    }
+}
+
+fn macro_param_name(token: &OktoToken) -> Option<&str> {
+    match token {
+        OktoToken::Identifier(s) if s.starts_with('%') => Some(s.as_str()),
+        _ => None,
+    }
+}
+
+fn collect_macro_definition_args(
+    ptokens: &[OktoPositionedToken],
+    start_index: usize,
+) -> Result<(Vec<String>, usize), OktoPositionedError> {
+    let Some(first) = ptokens.get(start_index) else {
+        return Ok((Vec::new(), 0));
+    };
+
+    if !is_open_paren_token(&first.token) {
+        return Ok((Vec::new(), 0));
+    }
+
+    let mut args = Vec::new();
+    let mut i = start_index + 1;
+    let mut expect_arg = true;
+
+    while i < ptokens.len() {
+        let ptkn = &ptokens[i];
+
+        if is_close_paren_token(&ptkn.token) {
+            return Ok((args, i - start_index + 1));
+        }
+
+        if expect_arg {
+            match macro_param_name(&ptkn.token) {
+                Some(name) => {
+                    args.push(name.to_string());
+                    expect_arg = false;
+                    i += 1;
+                }
+                None => {
+                    return Err(
+                        OktoPositionedError::new(
+                            "Expected macro argument in definition head".to_string(),
+                            ptkn.position.clone(),
+                        )
+                    )
+                }
+            }
+        } else {
+            if is_comma_token(&ptkn.token) {
+                expect_arg = true;
+                i += 1;
+            } else {
+                return Err(
+                    OktoPositionedError::new(
+                        "Expected ',' or ')' in macro definition head".to_string(),
+                        ptkn.position.clone(),
+                    )
+                );
+            }
+        }
+    }
+
+    Err(
+        OktoPositionedError::new(
+            "Unclosed macro definition head".to_string(),
+            first.position.clone(),
+        )
+    )
+}
+
+fn collect_macro_call_args(
+    ptokens: &[OktoPositionedToken],
+    start_index: usize,
+    fallback_pos: &OktoPosition,
+) -> Result<(Vec<OktoPositionedToken>, usize), OktoPositionedError> {
+    let Some(first) = ptokens.get(start_index) else {
+        return Ok((Vec::new(), 0));
+    };
+
+    if !is_open_paren_token(&first.token) {
+        return Ok((Vec::new(), 0));
+    }
+
+    let mut args: Vec<OktoPositionedToken> = Vec::new();
+    let mut i = start_index + 1;
+    let mut expect_arg = true;
+
+    while i < ptokens.len() {
+        let ptkn = &ptokens[i];
+
+        if is_close_paren_token(&ptkn.token) {
+            if expect_arg && !args.is_empty() {
+                return Err(
+                    OktoPositionedError::new(
+                        "Trailing comma in macro call".to_string(),
+                        ptkn.position.clone(),
+                    )
+                );
+            }
+
+            return Ok((args, i - start_index + 1));
+        }
+
+        if expect_arg {
+            if is_comma_token(&ptkn.token) {
+                return Err(
+                    OktoPositionedError::new(
+                        "Expected macro argument".to_string(),
+                        ptkn.position.clone(),
+                    )
+                );
+            }
+
+            args.push(ptkn.clone());
+            expect_arg = false;
+            i += 1;
+        } else {
+            if is_comma_token(&ptkn.token) {
+                expect_arg = true;
+                i += 1;
+            } else {
+                return Err(
+                    OktoPositionedError::new(
+                        "Expected ',' or ')' in macro call".to_string(),
+                        ptkn.position.clone(),
+                    )
+                );
+            }
+        }
+    }
+
+    Err(
+        OktoPositionedError::new(
+            "Unclosed macro call head".to_string(),
+            fallback_pos.clone(),
+        )
+    )
 }

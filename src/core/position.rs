@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct OktoPosition {
     pub file: Option<usize>,
     pub line: usize,

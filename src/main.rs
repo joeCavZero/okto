@@ -26,8 +26,13 @@ fn main() {
                     println!("===================================");
                     match generate_bytes_from_ast(&ast) {
                         Ok(sections) => {
+                            let mut sections_for_binary = Vec::new();
                             for s in &sections {
-                                println!("{:?} --- {:?}", s.directive, s.bytes);
+                                sections_for_binary.push((s.directive.get_name(), s.bytes.clone()));
+                            }
+                            match encode_binary(1, sections_for_binary) {
+                                    Ok(bin) => println!("deu {:?}", bin),
+                                     Err(e) => println!("Error: {}", e),
                             }
                         }
                         Err(e) => println!("Error: {}, {:?}", e.error, e.position),

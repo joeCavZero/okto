@@ -19,4 +19,18 @@ impl OktoDirective {
             _ => return false,
         }
     }
+
+    pub fn get_name(&self) -> String {
+        match self {
+            Self::Code => "code".to_string(),
+            Self::Byte => "byte".to_string(),
+            Self::Double => "double".to_string(),
+            Self::Char => "char".to_string(),
+            Self::String => "string".to_string(),
+            Self::Stringz => "stringz".to_string(),
+            Self::Space => "space".to_string(),
+            Self::Checkpoint => "checkpoint".to_string(),
+            Self::Custom(name) => name.clone(),
+        }
+    }
 }

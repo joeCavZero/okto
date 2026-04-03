@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use crate::compiler::*;
-
 use crate::debug;
 
 #[derive(Debug)]
 pub struct OktoCompilerCLI {
-    pub file_path: Option<String>,
+    pub input_path: Option<String>,
+    pub output_path: Option<String>,
     pub symbol_table: bool,
     pub help: bool,
 }
@@ -14,7 +14,8 @@ pub struct OktoCompilerCLI {
 impl OktoCompilerCLI {
     pub fn new() -> Self {
         Self {
-            file_path: None,
+            input_path: None,
+            output_path: None,
             symbol_table: false,
             help: false,
         }
@@ -47,30 +48,51 @@ impl OktoCompilerCLI {
                     self.help = true;
                 }
 
-                _ if arg.starts_with('-') => {
-                    debug::exit_compiler_with_error_str(
-                        &format!("Unknown option '{}'", arg)
-                    );
-                }
+                "-o" | "--out" => {
+                    let out = match args.get(i + 1) {
+                        Some(path) => path.clone(),
+                        None => {
+                            debug::exit_compiler_with_error_str(
+                                "Expected an output file path after output flag",
+                            );
+                            unreachable!()
+                        }
+                    };
 
-                _ => {
-                    if self.file_path.is_some() {
+                    if self.output_path.is_some() {
                         debug::exit_compiler_with_error_str(
-                            "Cannot specify more than one ASM file"
+                            "Cannot specify more than one output file",
                         );
                     }
 
-                    self.file_path = Some(arg.clone());
+                    self.output_path = Some(out);
+                    i += 1;
+                }
+
+                _ if arg.starts_with('-') => {
+                    debug::exit_compiler_with_error_str(&format!("Unknown option '{}'", arg));
+                }
+
+                _ => {
+                    if self.input_path.is_some() {
+                        debug::exit_compiler_with_error_str(
+                            "Cannot specify more than one ASM file",
+                        );
+                    }
+
+                    self.input_path = Some(arg.clone());
                 }
             }
 
             i += 1;
         }
 
-        let invalid = self.help && (self.file_path.is_some() || self.symbol_table);
+        let invalid = self.help
+            && (self.input_path.is_some() || self.output_path.is_some() || self.symbol_table);
 
         if invalid {
-            self.file_path = None;
+            self.input_path = None;
+            self.output_path = None;
             self.symbol_table = false;
             self.help = true;
 
@@ -83,15 +105,17 @@ impl OktoCompilerCLI {
             debug::message_str("Usage:");
             debug::message_str("  okto compiler <file.asm>");
             debug::message_str("  okto compiler <file.asm> --symbol-table");
+            debug::message_str("  okto compiler <file.asm> --out <file.rom>");
+            debug::message_str("  okto compiler <file.asm> -o <file.rom>");
             debug::message_str("  okto compiler --help");
             return;
         }
 
-        let file = match &self.file_path {
+        let file = match &self.input_path {
             Some(fp) => fp.clone(),
             None => {
                 debug::exit_compiler_with_error_str("No input file specified");
-                return;
+                unreachable!()
             }
         };
 
@@ -109,8 +133,17 @@ impl OktoCompilerCLI {
                             Ok(st) => st,
                             Err(e) => {
                                 match e.position.file {
-                                    Some(f) => debug::exit_compiler_with_error_and_position(&e.error, file_table.get(&f), e.position.line, e.position.column),
-                                    None => {},
+                                    Some(f) => {
+                                        debug::exit_compiler_with_error_and_position(
+                                            &e.error,
+                                            file_table.get(&f),
+                                            e.position.line,
+                                            e.position.column,
+                                        );
+                                    }
+                                    None => {
+                                        debug::exit_compiler_with_error_str(&e.error);
+                                    }
                                 }
                                 HashMap::new()
                             }
@@ -133,7 +166,22 @@ impl OktoCompilerCLI {
 
                                 match encode_binary(1, sections_for_binary) {
                                     Ok(bin) => {
-                                        debug::message(&format!("Binary: {:?}", bin));
+                                        let out_path = match &self.output_path {
+                                            Some(out_path) => out_path.clone(),
+                                            None => "out.bin".to_string(),
+                                        };
+                                        
+                                        if let Err(e) = std::fs::write(out_path.clone(), &bin) {
+                                            debug::exit_compiler_with_error_str(&format!(
+                                                "Could not write output file '{}': {}",
+                                                out_path, e
+                                            ));
+                                        }
+
+                                        debug::message_str(&format!(
+                                            "Binary written to '{}'",
+                                            out_path
+                                        ));
                                     }
                                     Err(e) => {
                                         debug::exit_compiler_with_error_str(&e.to_string());
@@ -141,16 +189,18 @@ impl OktoCompilerCLI {
                                 }
                             }
                             Err(e) => {
-                                debug::exit_compiler_with_error_str(
-                                    &format!("{}, {:?}", e.error, e.position)
-                                );
+                                debug::exit_compiler_with_error_str(&format!(
+                                    "{}, {:?}",
+                                    e.error, e.position
+                                ));
                             }
                         }
                     }
                     Err(e) => {
-                        debug::exit_compiler_with_error_str(
-                            &format!("{}, {:?}", e.error, e.position)
-                        );
+                        debug::exit_compiler_with_error_str(&format!(
+                            "{}, {:?}",
+                            e.error, e.position
+                        ));
                     }
                 }
             }

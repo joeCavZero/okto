@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::compiler::*;
-use crate::core::*;
-use crate::debug::OktoPositionedError;
+use crate::utils::*;
+use crate::debug::*;
 
 pub type OktoSymbolTable = HashMap<String, u16>;
 

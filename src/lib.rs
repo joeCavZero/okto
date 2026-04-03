@@ -1,3 +1,4 @@
-pub mod core;
-pub mod compiler;
+pub mod utils;
 pub mod debug;
+pub mod compiler;
+pub mod vm;

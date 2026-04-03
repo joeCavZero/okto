@@ -1,7 +1,7 @@
 use colored::Colorize;
 use supports_color::Stream;
 
-use crate::core::*;
+use crate::utils::*;
 
 pub type OktoError = String;
 

@@ -24,7 +24,14 @@ fn main() {
                     };
                     println!("\nSymbol Table: {:#?}", symbol_table);
                     println!("===================================");
-                    //println!("{:#?}", ast);
+                    match generate_bytes_from_ast(&ast) {
+                        Ok(sections) => {
+                            for s in &sections {
+                                println!("{:?} --- {:?}", s.directive, s.bytes);
+                            }
+                        }
+                        Err(e) => println!("Error: {}, {:?}", e.error, e.position),
+                    }
                 }
                 Err(e) => println!("Error: {}, {:?}", e.error, e.position),
             }

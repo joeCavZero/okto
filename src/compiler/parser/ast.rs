@@ -1,4 +1,4 @@
-use crate::{compiler::*, core::OktoDirective, debug::OktoPositionedError};
+use crate::{compiler::*, utils::OktoDirective, debug::OktoPositionedError};
 
 #[derive(Debug, Clone)]
 pub enum OktoSectionType {

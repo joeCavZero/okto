@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::compiler::*;
-use crate::core::*;
+use crate::utils::*;
 use crate::debug::*;
 
 #[derive(Debug)]

@@ -1,5 +1,5 @@
 use crate::compiler::lexer::*;
-use crate::core::*;
+use crate::utils::*;
 
 #[derive(Debug, Clone)]
 pub struct OktoPositionedToken {

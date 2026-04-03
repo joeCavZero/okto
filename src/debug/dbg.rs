@@ -57,7 +57,7 @@ fn get_coloured_error_name() -> String {
         if color_level.has_16m || color_level.has_256 {
             text
                 .bold()
-                .yellow()
+                .red()
                 .to_string()
         } else {
             text
@@ -67,11 +67,20 @@ fn get_coloured_error_name() -> String {
     }
 }
 
-fn get_coloured_position_name(file: &String, line: usize, column: Option<usize>) -> String {
-    let text = match column {
-        Some(c) => format!("[file: {}, line: {}, column: {}]", file, line, c),
-        None => format!("[file: {}, line: {}]", file, line),
+fn get_coloured_position_name(file: Option<&String>, line: usize, column: Option<usize>) -> String {
+    
+    let file_piece = match file {
+        Some(f) => format!("file: {} - ", f),
+        None => String::from(""),
     };
+
+    let column_piece = match column {
+        Some(c) => format!(" - column: {}", c),
+        None => String::from(""),
+    };
+
+    let text = format!("[{}line: {}{}]", file_piece, line, column_piece);
+    
     if let Some(color_level) = supports_color::on(Stream::Stdout) {
         if color_level.has_16m || color_level.has_256 {
             text
@@ -86,6 +95,42 @@ fn get_coloured_position_name(file: &String, line: usize, column: Option<usize>)
     }
 }
 
+pub fn message(msg: &OktoError) {
+    println!(
+        "\n{} {}",
+        get_coloured_okto_name(),
+        msg,
+    );
+}
+
+pub fn message_str(msg: &str) {
+    println!(
+        "\n{} {}",
+        get_coloured_okto_name(),
+        msg,
+    );
+}
+
+pub fn exit_with_error(err: &OktoError) {
+    println!(
+        "\n{} {} {}",
+        get_coloured_okto_name(),
+        get_coloured_error_name(),
+        err,
+    );
+    std::process::exit(1);
+}
+
+pub fn exit_with_error_str(err: &str) {
+    println!(
+        "\n{} {} {}",
+        get_coloured_okto_name(),
+        get_coloured_error_name(),
+        err,
+    );
+    std::process::exit(1);
+}
+
 pub fn exit_compiler_with_error(err: &OktoError) {
     println!(
         "\n{} {} {} {}",
@@ -94,10 +139,21 @@ pub fn exit_compiler_with_error(err: &OktoError) {
         get_coloured_error_name(),
         err,
     );
-    std::process::exit(0);
+    std::process::exit(1);
 }
 
-pub fn exit_compiler_with_error_and_position(err: &OktoError, file: &String, line: usize, column: Option<usize>) {
+pub fn exit_compiler_with_error_str(err: &str) {
+    println!(
+        "\n{} {} {} {}",
+        get_coloured_okto_name(),
+        get_coloured_compiler_name(),
+        get_coloured_error_name(),
+        err,
+    );
+    std::process::exit(1);
+}
+
+pub fn exit_compiler_with_error_and_position(err: &OktoError, file: Option<&String>, line: usize, column: Option<usize>) {
     println!(
         "\n{} {} {} {} {}",
         get_coloured_okto_name(),
@@ -106,5 +162,5 @@ pub fn exit_compiler_with_error_and_position(err: &OktoError, file: &String, lin
         err,
         get_coloured_position_name(file, line, column),
     );
-    std::process::exit(0);
+    std::process::exit(1);
 }

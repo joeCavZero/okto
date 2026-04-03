@@ -1,6 +1,13 @@
 #[derive(Debug, Clone)]
 pub enum OktoDirective {
     Code,
+    Byte,
+    Double,
+    Char,
+    String,
+    Stringz,
+    Space,
+    Checkpoint,
     Custom(String),
 }
 

@@ -1,18 +1,44 @@
 use crate::{compiler::*, core::OktoDirective, debug::OktoPositionedError};
 
 #[derive(Debug, Clone)]
+pub enum OktoSectionType {
+    Code,
+    Data,
+}
+
+#[derive(Debug, Clone)]
 pub struct OktoAST {
     pub code: Vec<OktoCodeItem>,
-    pub customs: Vec<Vec<OktoCustomItem>>,
+    pub customs: Vec<OktoCustomSection>,
 }
 
 impl OktoAST {
-    pub fn from_positioned_tokens(positioned_tokens: &Vec<OktoPositionedToken>) -> Result<Self, OktoPositionedError> {
+    pub fn from_positioned_tokens(positioned_tokens: &Vec<OktoPositionedToken>, custom_directives: &Vec<(String, OktoSectionType )>) -> Result<Self, OktoPositionedError> {
         let code_items = match parse_code_section(positioned_tokens, OktoDirective::Code) {
             Ok(items) => items,
             Err(e) => return Err(e),
         };
-        let custom_items = Vec::new();
+        let mut custom_items = Vec::new();
+
+        for (dn, dt ) in custom_directives {
+            let directive = OktoDirective::Custom(dn.clone());
+            match dt {
+                OktoSectionType::Code => {
+                    match parse_code_section(positioned_tokens, directive.clone()) {
+                        Ok(items) => custom_items.push(OktoCustomSection::Code(directive, items)),
+                        Err(e) => return Err(e),
+                    }
+                }
+                OktoSectionType::Data => {
+                    match parse_data_section(positioned_tokens, directive.clone()) {
+                        Ok(items) => custom_items.push(OktoCustomSection::Data(directive, items)),
+                        Err(e) => return Err(e),
+                    }
+                }
+
+            }
+
+        }
         Ok(
             OktoAST {
                 code: code_items,
@@ -23,8 +49,9 @@ impl OktoAST {
 }
 
 #[derive(Debug, Clone)]
-pub enum OktoCustomItem {
-    Code(OktoCodeItem),
+pub enum OktoCustomSection {
+    Code(OktoDirective, Vec<OktoCodeItem>),
+    Data(OktoDirective, Vec<OktoDataItem>),
 }
 
 #[derive(Debug, Clone)]
@@ -40,4 +67,13 @@ pub enum OktoCodeItem {
 
     // label: la label
     LabelsInstrLabel(Vec<OktoPositionedToken>, OktoPositionedToken, OktoPositionedToken),
+}
+
+#[derive(Debug, Clone)]
+pub enum OktoDataItem {
+    LabelsType(Vec<OktoPositionedToken>, OktoPositionedToken),
+    LabelsTypeNumber(Vec<OktoPositionedToken>, OktoPositionedToken, OktoPositionedToken),
+    LabelsTypeString(Vec<OktoPositionedToken>, OktoPositionedToken, OktoPositionedToken),
+    LabelsTypeChar(Vec<OktoPositionedToken>, OktoPositionedToken, OktoPositionedToken),
+    LabelsTypeNumbers(Vec<OktoPositionedToken>, OktoPositionedToken, Vec<OktoPositionedToken>),
 }

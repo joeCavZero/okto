@@ -54,6 +54,7 @@ impl OktoToken {
             // pseudo instruction
             "nope" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Nope)),
             "li" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Li)),
+            "lchr" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Lchr)),
             "la" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::La)),
 
             // general registers
@@ -81,6 +82,13 @@ impl OktoToken {
             _ if source.starts_with(".") => {
                 match source.as_str() {
                     ".code" => Ok(OktoToken::Directive(OktoDirective::Code)),
+                    ".byte" => Ok(OktoToken::Directive(OktoDirective::Byte)),
+                    ".double" => Ok(OktoToken::Directive(OktoDirective::Double)),
+                    ".char" => Ok(OktoToken::Directive(OktoDirective::Char)),
+                    ".string" => Ok(OktoToken::Directive(OktoDirective::String)),
+                    ".stringz" => Ok(OktoToken::Directive(OktoDirective::Stringz)),
+                    ".space" => Ok(OktoToken::Directive(OktoDirective::Space)),
+                    ".checkpoint" => Ok(OktoToken::Directive(OktoDirective::Checkpoint)),
                     _ => Ok(OktoToken::Directive(OktoDirective::Custom(source.clone()))),
                 }
             }

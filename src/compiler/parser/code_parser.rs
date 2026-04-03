@@ -54,136 +54,154 @@ pub fn parse_code_section(
                 i += 1;
             }
 
-            OktoToken::Instruction(instruction) => {
-                match instruction {
-                    OktoInstruction::Lli | OktoInstruction::Lai | OktoInstruction::Lxi => {
-                        let (reg, imm, consumed) =
-                            match read_reg_imm_sequence(&positioned_tokens, i + 1, &current.position)
-                            {
-                                Ok(result) => result,
-                                Err(err) => {
-                                    return Err(OktoPositionedError::new(
-                                        format!("Error parsing instruction: {}", err.error),
-                                        err.position,
-                                    ));
-                                }
-                            };
+            OktoToken::Instruction(instruction) => match instruction {
+                OktoInstruction::Lli | OktoInstruction::Lai | OktoInstruction::Lxi => {
+                    let (reg, imm, consumed) =
+                        match read_reg_imm_sequence(&positioned_tokens, i + 1, &current.position) {
+                            Ok(result) => result,
+                            Err(err) => {
+                                return Err(OktoPositionedError::new(
+                                    format!("Error parsing instruction: {}", err.error),
+                                    err.position,
+                                ));
+                            }
+                        };
 
-                        code_items.push(OktoCodeItem::LabelsInstrRegImm(
-                            std::mem::take(&mut label_accumulator),
-                            current.clone(),
-                            reg,
-                            imm,
-                        ));
+                    code_items.push(OktoCodeItem::LabelsInstrRegImm(
+                        std::mem::take(&mut label_accumulator),
+                        current.clone(),
+                        reg,
+                        imm,
+                    ));
 
-                        i += 1 + consumed;
-                    }
-
-                    OktoInstruction::Mv | OktoInstruction::Ld | OktoInstruction::St => {
-                        let (reg1, reg2, consumed) =
-                            match read_reg_reg_sequence(&positioned_tokens, i + 1, &current.position)
-                            {
-                                Ok(result) => result,
-                                Err(err) => {
-                                    return Err(OktoPositionedError::new(
-                                        format!("Error parsing instruction: {}", err.error),
-                                        err.position,
-                                    ));
-                                }
-                            };
-
-                        code_items.push(OktoCodeItem::LabelsInstrRegReg(
-                            std::mem::take(&mut label_accumulator),
-                            current.clone(),
-                            reg1,
-                            reg2,
-                        ));
-
-                        i += 1 + consumed;
-                    }
-
-                    OktoInstruction::Add
-                    | OktoInstruction::Sub
-                    | OktoInstruction::And
-                    | OktoInstruction::Or
-                    | OktoInstruction::Xor
-                    | OktoInstruction::Not
-                    | OktoInstruction::Shr
-                    | OktoInstruction::Shl
-                    | OktoInstruction::Jmp
-                    | OktoInstruction::Jeq
-                    | OktoInstruction::Jneq
-                    | OktoInstruction::Jgt
-                    | OktoInstruction::Jlt
-                    | OktoInstruction::Swpf
-                    | OktoInstruction::Swpx
-                    | OktoInstruction::Call => {
-                        code_items.push(OktoCodeItem::LabelsInstr(
-                            std::mem::take(&mut label_accumulator),
-                            current.clone(),
-                        ));
-
-                        i += 1;
-                    }
+                    i += 1 + consumed;
                 }
-            }
 
-            OktoToken::PseudoInstruction(pseudo_instruction) => {
-                match pseudo_instruction {
-                    OktoPseudoInstruction::Li => {
-                        let (reg, imm, consumed) =
-                            match read_reg_imm_sequence(&positioned_tokens, i + 1, &current.position)
-                            {
-                                Ok(result) => result,
-                                Err(err) => {
-                                    return Err(OktoPositionedError::new(
-                                        format!("Error parsing pseudo-instruction: {}", err.error),
-                                        err.position,
-                                    ));
-                                }
-                            };
+                OktoInstruction::Mv | OktoInstruction::Ld | OktoInstruction::St => {
+                    let (reg1, reg2, consumed) =
+                        match read_reg_reg_sequence(&positioned_tokens, i + 1, &current.position) {
+                            Ok(result) => result,
+                            Err(err) => {
+                                return Err(OktoPositionedError::new(
+                                    format!("Error parsing instruction: {}", err.error),
+                                    err.position,
+                                ));
+                            }
+                        };
 
-                        code_items.push(OktoCodeItem::LabelsInstrRegImm(
-                            std::mem::take(&mut label_accumulator),
-                            current.clone(),
-                            reg,
-                            imm,
-                        ));
+                    code_items.push(OktoCodeItem::LabelsInstrRegReg(
+                        std::mem::take(&mut label_accumulator),
+                        current.clone(),
+                        reg1,
+                        reg2,
+                    ));
 
-                        i += 1 + consumed;
-                    }
-
-                    OktoPseudoInstruction::Nope => {
-                        code_items.push(OktoCodeItem::LabelsInstr(
-                            std::mem::take(&mut label_accumulator),
-                            current.clone(),
-                        ));
-
-                        i += 1;
-                    }
-
-                    OktoPseudoInstruction::La => {
-                        let (label, consumed) =
-                            match read_label_sequence(&positioned_tokens, i + 1, &current.position) {
-                                Ok(result) => result,
-                                Err(err) => {
-                                    return Err(OktoPositionedError::new(
-                                        format!("Error parsing pseudo-instruction: {}", err.error),
-                                        err.position,
-                                    ));
-                                }
-                            };
-
-                        code_items.push(OktoCodeItem::LabelsInstrLabel(
-                            std::mem::take(&mut label_accumulator),
-                            current.clone(),
-                            label,
-                        ));
-
-                        i += 1 + consumed;
-                    }
+                    i += 1 + consumed;
                 }
-            }
+
+                OktoInstruction::Add
+                | OktoInstruction::Sub
+                | OktoInstruction::And
+                | OktoInstruction::Or
+                | OktoInstruction::Xor
+                | OktoInstruction::Not
+                | OktoInstruction::Shr
+                | OktoInstruction::Shl
+                | OktoInstruction::Jmp
+                | OktoInstruction::Jeq
+                | OktoInstruction::Jneq
+                | OktoInstruction::Jgt
+                | OktoInstruction::Jlt
+                | OktoInstruction::Swpf
+                | OktoInstruction::Swpx
+                | OktoInstruction::Call => {
+                    code_items.push(OktoCodeItem::LabelsInstr(
+                        std::mem::take(&mut label_accumulator),
+                        current.clone(),
+                    ));
+
+                    i += 1;
+                }
+            },
+
+            OktoToken::PseudoInstruction(pseudo_instruction) => match pseudo_instruction {
+                OktoPseudoInstruction::Li => {
+                    let (reg, imm, consumed) =
+                        match read_reg_imm_sequence(&positioned_tokens, i + 1, &current.position) {
+                            Ok(result) => result,
+                            Err(err) => {
+                                return Err(OktoPositionedError::new(
+                                    format!("Error parsing pseudo-instruction: {}", err.error),
+                                    err.position,
+                                ));
+                            }
+                        };
+
+                    code_items.push(OktoCodeItem::LabelsInstrRegImm(
+                        std::mem::take(&mut label_accumulator),
+                        current.clone(),
+                        reg,
+                        imm,
+                    ));
+
+                    i += 1 + consumed;
+                }
+
+                OktoPseudoInstruction::Lchr => {
+                    let (reg, chr, consumed) = match read_reg_char_sequence(
+                        &positioned_tokens,
+                        i + 1,
+                        &current.position,
+                    ) {
+                        Ok(result) => result,
+                        Err(err) => {
+                            return Err(OktoPositionedError::new(
+                                format!("Error parsing pseudo-instruction: {}", err.error),
+                                err.position,
+                            ));
+                        }
+                    };
+
+                    code_items.push(OktoCodeItem::LabelsInstrRegImm(
+                        std::mem::take(&mut label_accumulator),
+                        current.clone(),
+                        reg,
+                        chr,
+                    ));
+
+                    i += 1 + consumed;
+                }
+
+                OktoPseudoInstruction::Nope => {
+                    code_items.push(OktoCodeItem::LabelsInstr(
+                        std::mem::take(&mut label_accumulator),
+                        current.clone(),
+                    ));
+
+                    i += 1;
+                }
+
+                OktoPseudoInstruction::La => {
+                    let (label, consumed) =
+                        match read_label_sequence(&positioned_tokens, i + 1, &current.position) {
+                            Ok(result) => result,
+                            Err(err) => {
+                                return Err(OktoPositionedError::new(
+                                    format!("Error parsing pseudo-instruction: {}", err.error),
+                                    err.position,
+                                ));
+                            }
+                        };
+
+                    code_items.push(OktoCodeItem::LabelsInstrLabel(
+                        std::mem::take(&mut label_accumulator),
+                        current.clone(),
+                        label,
+                    ));
+
+                    i += 1 + consumed;
+                }
+            },
 
             OktoToken::Directive(_) => {
                 i += 1;
@@ -198,7 +216,8 @@ pub fn parse_code_section(
         }
     }
 
-    if OktoDirective::current_section_matches(&current_section, &section_directive) && !label_accumulator.is_empty()
+    if OktoDirective::current_section_matches(&current_section, &section_directive)
+        && !label_accumulator.is_empty()
     {
         let last_label = match label_accumulator.first() {
             Some(label) => label,
@@ -213,7 +232,6 @@ pub fn parse_code_section(
 
     Ok(code_items)
 }
-
 
 fn read_reg_reg_sequence(
     positioned_tokens: &[OktoPositionedToken],
@@ -259,6 +277,77 @@ fn read_reg_imm_sequence(
     };
 
     Ok((reg, imm, 3))
+}
+
+fn read_reg_char_sequence(
+    positioned_tokens: &[OktoPositionedToken],
+    start_index: usize,
+    base_position: &OktoPosition,
+) -> Result<(OktoPositionedToken, OktoPositionedToken, usize), OktoPositionedError> {
+    let reg = match expect_register(positioned_tokens, start_index, base_position) {
+        Ok(value) => value,
+        Err(err) => return Err(err),
+    };
+
+    let comma = match expect_comma(positioned_tokens, start_index + 1, &reg.position) {
+        Ok(value) => value,
+        Err(err) => return Err(err),
+    };
+
+    let chr = match expect_char_literal(positioned_tokens, start_index + 2, &comma.position) {
+        Ok(value) => value,
+        Err(err) => return Err(err),
+    };
+
+    Ok((reg, chr, 3))
+}
+
+fn read_label_sequence(
+    positioned_tokens: &[OktoPositionedToken],
+    start_index: usize,
+    base_position: &OktoPosition,
+) -> Result<(OktoPositionedToken, usize), OktoPositionedError> {
+    let token = match positioned_tokens.get(start_index) {
+        Some(token) => token,
+        None => {
+            return Err(OktoPositionedError::new(
+                "Expected an identifier".to_string(),
+                base_position.clone(),
+            ));
+        }
+    };
+
+    match token.token {
+        OktoToken::Identifier(_) => Ok((token.clone(), 1)),
+        _ => Err(OktoPositionedError::new(
+            "Expected an identifier".to_string(),
+            token.position.clone(),
+        )),
+    }
+}
+
+fn expect_char_literal(
+    positioned_tokens: &[OktoPositionedToken],
+    index: usize,
+    fallback_position: &OktoPosition,
+) -> Result<OktoPositionedToken, OktoPositionedError> {
+    let token = match positioned_tokens.get(index) {
+        Some(token) => token,
+        None => {
+            return Err(OktoPositionedError::new(
+                "Expected a char literal".to_string(),
+                fallback_position.clone(),
+            ));
+        }
+    };
+
+    match token.token {
+        OktoToken::Literal(OktoLiteral::Char(_)) => Ok(token.clone()),
+        _ => Err(OktoPositionedError::new(
+            "Expected a char literal".to_string(),
+            token.position.clone(),
+        )),
+    }
 }
 
 fn expect_register(
@@ -333,26 +422,3 @@ fn expect_number_literal(
     }
 }
 
-fn read_label_sequence(
-    positioned_tokens: &[OktoPositionedToken],
-    start_index: usize,
-    base_position: &OktoPosition,
-) -> Result<(OktoPositionedToken, usize), OktoPositionedError> {
-    let token = match positioned_tokens.get(start_index) {
-        Some(token) => token,
-        None => {
-            return Err(OktoPositionedError::new(
-                "Expected an identifier".to_string(),
-                base_position.clone(),
-            ));
-        }
-    };
-
-    match token.token {
-        OktoToken::Identifier(_) => Ok((token.clone(), 1)),
-        _ => Err(OktoPositionedError::new(
-            "Expected an identifier".to_string(),
-            token.position.clone(),
-        )),
-    }
-}

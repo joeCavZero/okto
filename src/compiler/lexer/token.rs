@@ -1,5 +1,5 @@
 use crate::debug;
-use crate::core::instruction::*;
+use crate::core::*;
 
 use crate::compiler::*;
 
@@ -13,6 +13,7 @@ pub enum OktoLiteral {
 #[derive(Debug, Clone)]
 pub enum OktoToken {
     Instruction(OktoInstruction),
+    PseudoInstruction(OktoPseudoInstruction),
     GeneralRegister(OktoGeneralRegister),
     Directive(OktoDirective),
     Literal(OktoLiteral),
@@ -32,7 +33,7 @@ impl OktoToken {
             "lxi" => Ok(OktoToken::Instruction(OktoInstruction::Lxi)),
             "mv" => Ok(OktoToken::Instruction(OktoInstruction::Mv)),
             "ld" => Ok(OktoToken::Instruction(OktoInstruction::Ld)),
-            "str" => Ok(OktoToken::Instruction(OktoInstruction::Str)),
+            "st" => Ok(OktoToken::Instruction(OktoInstruction::St)),
             "add" => Ok(OktoToken::Instruction(OktoInstruction::Add)),
             "sub" => Ok(OktoToken::Instruction(OktoInstruction::Sub)),
             "and" => Ok(OktoToken::Instruction(OktoInstruction::And)),
@@ -46,16 +47,21 @@ impl OktoToken {
             "jneq" => Ok(OktoToken::Instruction(OktoInstruction::Jneq)),
             "jgt" => Ok(OktoToken::Instruction(OktoInstruction::Jgt)),
             "jlt" => Ok(OktoToken::Instruction(OktoInstruction::Jlt)),
-            "swe" => Ok(OktoToken::Instruction(OktoInstruction::Swe)),
-            "swc" => Ok(OktoToken::Instruction(OktoInstruction::Swc)),
+            "swpf" => Ok(OktoToken::Instruction(OktoInstruction::Swpf)),
+            "swpx" => Ok(OktoToken::Instruction(OktoInstruction::Swpx)),
             "call" => Ok(OktoToken::Instruction(OktoInstruction::Call)),
+
+            // pseudo instruction
+            "nope" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Nope)),
+            "li" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Li)),
+            "la" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::La)),
 
             // general registers
             _ if source.starts_with("$") => {
                 match source.as_str() {
                     "$a" => Ok(OktoToken::GeneralRegister(OktoGeneralRegister::A)),
-                    "$x" => Ok(OktoToken::GeneralRegister(OktoGeneralRegister::X)),
-                    "$y" => Ok(OktoToken::GeneralRegister(OktoGeneralRegister::Y)),
+                    "$b" => Ok(OktoToken::GeneralRegister(OktoGeneralRegister::B)),
+                    "$c" => Ok(OktoToken::GeneralRegister(OktoGeneralRegister::C)),
                     "$sp" => Ok(OktoToken::GeneralRegister(OktoGeneralRegister::SP)),
                     _ => Err(format!("Unknown register: {}", source)),
                 }
@@ -100,7 +106,7 @@ impl OktoToken {
                 let arg_name = source.trim_start_matches('%').to_string();
                 Ok(OktoToken::MacroArg(arg_name))
             }
-            
+
             // identifiers
             _ => Ok(OktoToken::Identifier(source.clone())),
         }

@@ -5,7 +5,7 @@ pub enum OktoInstruction {
     Lxi,
     Mv,
     Ld,
-    Str,
+    St,
     Add,
     Sub,
     And,
@@ -19,7 +19,7 @@ pub enum OktoInstruction {
     Jneq,
     Jgt,
     Jlt,
-    Swe,
-    Swc,
+    Swpf,
+    Swpx,
     Call,
 }

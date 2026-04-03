@@ -1,7 +1,7 @@
 #[derive(Debug, Clone)]
 pub enum OktoGeneralRegister {
     A,
-    X,
-    Y, 
+    B,
+    C, 
     SP,
 }

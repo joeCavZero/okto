@@ -319,9 +319,12 @@ impl OktoProcessorContext {
 
 pub fn lex_and_process_file(
     file: &String,
-) -> Result<Vec<OktoPositionedToken>, OktoPositionedError> {
+) -> Result<(Vec<OktoPositionedToken>, OktoFileTable), OktoPositionedError> {
     let mut ctx = OktoProcessorContext::new();
-    ctx.process_file(Path::new(file))
+    match ctx.process_file(Path::new(file)) {
+        Ok(ptkns) => return Ok((ptkns, ctx.file_table,)),
+        Err(e) => return Err(e),
+    }
 }
 
 pub fn process_tokens(

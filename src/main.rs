@@ -6,11 +6,12 @@ fn main() {
     let file = args.get(1).unwrap_or(&default_file).clone();
 
     match lex_and_process_file(&file) {
-        Ok(tokens) => {
+        Ok((ptkns, file_table)) => {
             println!("Tokens:");
-            for t in tokens {
-                println!("{:?}", t);
+            for t in ptkns {
+                println!("{:?} - {:?}", t.token, t.position);
             }
+            println!("\nFile Table: {:#?}", file_table);
         }
         Err(e) => {
             eprintln!("Error: {}", e.error);

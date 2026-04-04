@@ -10,7 +10,10 @@
     okto compiler <file.asm> --help/-h
 */
 
+use std::collections::HashMap;
+
 use crate::debug;
+use crate::vm::*;
 
 
 #[derive(Debug)]
@@ -124,7 +127,30 @@ impl OktoCLI {
             }
         };
 
-        debug::message(&format!("Running {}", file));
+        let data = match std::fs::read(file) {
+            Ok(raw) => raw,
+            Err(e) => {
+                debug::exit_with_error(&format!("Failed to read file {}: {}", file, e));
+                unreachable!()
+            }
+        };
+        
+        match binary_decode(&data) {
+            Ok(mem) => {
+                let code = mem.get(".code").cloned().unwrap_or_default();
+                let sprite = mem.get(".sprite").cloned().unwrap_or_default();
+                let audio = mem.get(".audio").cloned().unwrap_or_default();
+                let mut custom = HashMap::new();
+                custom.insert(".sprite".to_string(), sprite);
+                custom.insert(".audio".to_string(), audio);
+                let mut okto = OktoVM::from(code, custom);
+                match okto.execute() {
+                    Ok(()) => {}
+                    Err(e) => debug::exit_with_error(&e),
+                }
+            }
+            Err(e) => debug::exit_with_error(&format!("Failed to decode binary from file {}: {}", file, e).into()),
+        }
 
         if self.registers {
             debug::message_str("(Registers will be displayed)");

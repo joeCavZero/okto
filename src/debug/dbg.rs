@@ -97,7 +97,7 @@ fn get_coloured_position_name(file: Option<&String>, line: usize, column: Option
 
 pub fn message(msg: &OktoError) {
     println!(
-        "\n{} {}",
+        "{} {}",
         get_coloured_okto_name(),
         msg,
     );
@@ -105,7 +105,7 @@ pub fn message(msg: &OktoError) {
 
 pub fn message_str(msg: &str) {
     println!(
-        "\n{} {}",
+        "{} {}",
         get_coloured_okto_name(),
         msg,
     );

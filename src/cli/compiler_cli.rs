@@ -150,9 +150,25 @@ impl OktoCompilerCLI {
                         };
 
                         if self.symbol_table {
-                            debug::message_str("");
-                            debug::message_str(&format!("Symbol Table: {:#?}", symbol_table));
-                            debug::message_str("===================================");
+                            debug::message_str("======== Symbol Table =========");
+
+                            for (label, addr) in &symbol_table {
+                                let label_str = format!("[{}]", label);
+                                let addr_str = format!("[{}]", addr);
+
+                                // tamanho base da seta
+                                let total_width: usize = 25;
+                                let arrow_len = total_width.saturating_sub(label_str.len());
+                                let mut arrow = "-".repeat(arrow_len);
+                                arrow.push('>');
+
+                                debug::message_str(&format!(
+                                    "{} {} {}",
+                                    label_str, arrow, addr_str
+                                ));
+                            }
+
+                            debug::message_str("===============================");
                         }
 
                         match generate_bytes_from_ast(&ast) {
@@ -164,13 +180,13 @@ impl OktoCompilerCLI {
                                         .push((s.directive.get_name(), s.bytes.clone()));
                                 }
 
-                                match encode_binary(1, sections_for_binary) {
+                                match binary_encode(1, sections_for_binary) {
                                     Ok(bin) => {
                                         let out_path = match &self.output_path {
                                             Some(out_path) => out_path.clone(),
                                             None => "out.bin".to_string(),
                                         };
-                                        
+
                                         if let Err(e) = std::fs::write(out_path.clone(), &bin) {
                                             debug::exit_compiler_with_error_str(&format!(
                                                 "Could not write output file '{}': {}",

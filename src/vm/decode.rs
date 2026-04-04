@@ -2,17 +2,17 @@ use crate::utils::*;
 
 pub fn decode(byte: u8) -> Option<DecodedInstruction> {
     match decode_gamma(byte) {
-        Some(instr) => return Some(DecodedInstruction::Implicit(instr)),
+        Some(instr) => return Some(DecodedInstruction::Gamma(instr)),
         None => {}
     }
 
     match decode_beta(byte) {
-        Some((instr, r1, r2)) => return Some(DecodedInstruction::RegReg(instr, r1, r2)),
+        Some((instr, r1, r2)) => return Some(DecodedInstruction::Beta(instr, r1, r2)),
         None => {}
     }
 
     match decode_alpha(byte) {
-        Some((instr, reg, imm)) => return Some(DecodedInstruction::RegImm(instr, reg, imm)),
+        Some((instr, reg, imm)) => return Some(DecodedInstruction::Alpha(instr, reg, imm)),
         None => {}
     }
 
@@ -21,9 +21,9 @@ pub fn decode(byte: u8) -> Option<DecodedInstruction> {
 
 #[derive(Debug, Clone)]
 pub enum DecodedInstruction {
-    RegImm(OktoInstruction, OktoGeneralRegister, u8),
-    RegReg(OktoInstruction, OktoGeneralRegister, OktoGeneralRegister),
-    Implicit(OktoInstruction),
+    Alpha(OktoInstruction, OktoGeneralRegister, u8),
+    Beta(OktoInstruction, OktoGeneralRegister, OktoGeneralRegister),
+    Gamma(OktoInstruction),
 }
 
 pub fn decode_alpha(byte: u8) -> Option<(OktoInstruction, OktoGeneralRegister, u8)> {

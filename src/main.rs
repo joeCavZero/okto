@@ -9,7 +9,9 @@ fn main() {
             cli.run();
         }
         _ => {
-
+            let mut cli = OktoCLI::new();
+            cli.scan();
+            cli.run();
         }
     } 
 }

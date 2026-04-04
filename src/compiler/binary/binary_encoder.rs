@@ -11,7 +11,7 @@
 
 use crate::debug::OktoError;
 
-pub fn encode_binary(version: u16, sections: Vec<(String, Vec<u8>)>) -> Result<Vec<u8>, OktoError> {
+pub fn binary_encode(version: u16, sections: Vec<(String, Vec<u8>)>) -> Result<Vec<u8>, OktoError> {
     let okto_bytes = b"okto";
     let version_bytes = version.to_be_bytes();
     let section_quantity_bytes = match u8::try_from(sections.len()) {

@@ -14,6 +14,9 @@ pub const OKTO_SECTION_CODE: &str = ".code";
 pub const OKTO_SECTION_SPRITE: &str = ".sprite";
 pub const OKTO_SECTION_AUDIO: &str = ".audio";
 
+const PRINT_REGISTER_ARROW_WIDTH: usize = 14;
+
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OktoCLICommandKind {
     ExecuteRom,
@@ -339,7 +342,9 @@ impl OktoCLI {
         debug::message_str("Usage:");
         debug::message_str("  okto <file.rom> [--registers]");
         debug::message_str("  okto build <file.asm> [--symbol-table] [--out <file.rom>]");
-        debug::message_str("  okto run <file.asm> [--symbol-table] [--registers] [--out <file.rom>]",);
+        debug::message_str(
+            "  okto run <file.asm> [--symbol-table] [--registers] [--out <file.rom>]",
+        );
         debug::message_str("  okto --help");
         debug::message_str("  okto --version");
     }
@@ -526,8 +531,22 @@ impl OktoCLI {
         }
 
         if self.command.registers {
-            debug::message_str("(Registers will be displayed)");
+            Self::print_registers(&okto.registers);
         }
+    }
+
+    fn print_registers(registers: &OktoRegisters) {
+        debug::message_str("============= Registers =============");
+
+        Self::print_u8_register("a", registers.a);
+        Self::print_u8_register("b", registers.b);
+        Self::print_u8_register("c", registers.c);
+        Self::print_u8_register("sp", registers.sp);
+        Self::print_u8_register("f", registers.f);
+        Self::print_u16_register("x", registers.x);
+        Self::print_u16_register("pc", registers.pc);
+
+        debug::message_str("=====================================");
     }
 
     fn print_symbol_table(entries: &[(String, String)]) {
@@ -537,7 +556,7 @@ impl OktoCLI {
             let label_str = format!("[{}]", label);
             let addr_str = format!("[{}]", addr);
 
-            let total_width: usize = 25;
+            let total_width: usize = 23;
             let arrow_len = total_width.saturating_sub(label_str.len());
             let mut arrow = "-".repeat(arrow_len);
             arrow.push('>');
@@ -546,5 +565,33 @@ impl OktoCLI {
         }
 
         debug::message_str("===============================");
+    }
+
+    fn print_u8_register(name: &str, value: u8) {
+        let label_str = format!("[{}]", name);
+        let value_str = format!(
+            "[0b{:08b}]",
+            value,
+        );
+
+        let arrow_len = PRINT_REGISTER_ARROW_WIDTH.saturating_sub(label_str.len());
+        let mut arrow = "-".repeat(arrow_len);
+        arrow.push('>');
+
+        debug::message_str(&format!("{} {} {}", label_str, arrow, value_str));
+    }
+
+    fn print_u16_register(name: &str, value: u16) {
+        let label_str = format!("[{}]", name);
+        let value_str = format!(
+            "[0b{:016b}]",
+            value,
+        );
+
+        let arrow_len = PRINT_REGISTER_ARROW_WIDTH.saturating_sub(label_str.len());
+        let mut arrow = "-".repeat(arrow_len);
+        arrow.push('>');
+
+        debug::message_str(&format!("{} {} {}", label_str, arrow, value_str));
     }
 }

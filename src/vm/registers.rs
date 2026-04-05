@@ -10,6 +10,8 @@ pub struct OktoRegisters {
     pub x: u16,
 
     pub pc: u16,
+
+    pub ir: u8,
 }
 
 impl OktoRegisters {
@@ -22,6 +24,7 @@ impl OktoRegisters {
             f: rand::random::<u8>(),
             x: rand::random::<u16>(),
             pc: 0,
+            ir: 0,
         }
     }
 

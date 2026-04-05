@@ -5,18 +5,20 @@ use crate::vm::*;
 impl OktoVM {
     pub fn execute(&mut self) -> Result<(), OktoError> {
         'execution_loop: loop {
-            let raw_instruction = match self.memory_load_instruction(self.registers.pc) {
+            self.registers.ir = match self.memory_load_instruction(self.registers.pc) {
                 Ok(byte) => byte,
                 Err(e) => {
-                    return Err(
-                        format!("Failed to fetch instruction at {}: {}", self.registers.pc, e).into(),
-                    );
+                    return Err(format!(
+                        "Failed to fetch instruction at {}: {}",
+                        self.registers.pc, e
+                    )
+                    .into());
                 }
             };
 
-            let decoded = match decode(raw_instruction) {
+            let decoded = match decode(self.registers.ir) {
                 Some(decoded) => decoded,
-                None => return Err(format!("Invalid instruction: 0b{:08b}", raw_instruction)),
+                None => return Err(format!("Invalid instruction: 0b{:08b}", self.registers.ir)),
             };
 
             match self.registers.increment_pc() {
@@ -30,7 +32,6 @@ impl OktoVM {
                         let old = self.registers.get_general_register_value(&reg);
                         let new = (old & 0xF0) | (imm & 0x0F);
                         self.registers.set_general_register_value(&reg, new);
-                        
                     }
 
                     OktoInstruction::Lai => {
@@ -200,6 +201,14 @@ impl OktoVM {
                     }
                 },
             }
+
+            let mut interface_option = self.interface.take();
+            if let Some(ref mut interface) = interface_option {
+                if interface.execution(self) == true {
+                    break 'execution_loop;
+                }
+            }
+            self.interface = interface_option;
         }
 
         Ok(())

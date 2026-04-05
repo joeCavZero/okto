@@ -5,7 +5,7 @@ use crate::vm::*;
 impl OktoVM {
     pub fn execute(&mut self) -> Result<(), OktoError> {
         'execution_loop: loop {
-            let raw_instruction = match self.memory.load_instruction(self.registers.pc) {
+            let raw_instruction = match self.memory_load_instruction(self.registers.pc) {
                 Ok(byte) => byte,
                 Err(e) => {
                     return Err(
@@ -67,7 +67,7 @@ impl OktoVM {
                         OktoInstruction::Ld => {
                             // ld $a, $b <-> a == *b
                             let address = self.registers.get_general_register_value(&reg2);
-                            let value = self.memory.load_stack_value(address);
+                            let value = self.memory_load_stack_value(address);
                             self.registers.set_general_register_value(&reg1, value);
                         }
 
@@ -75,7 +75,7 @@ impl OktoVM {
                             // st $a, $b <-> *b = a
                             let value = self.registers.get_general_register_value(&reg1);
                             let address = self.registers.get_general_register_value(&reg2);
-                            self.memory.store_stack_value(address, value);
+                            self.memory_store_stack_value(address, value);
                         }
 
                         _ => {

@@ -2,14 +2,48 @@ use std::io::Write;
 
 use crate::vm::*;
 
-pub struct OktoConsole {
+const MEMORY_SIZE: usize = 65536;
 
+pub struct OktoConsole {
+    pub sprite_memory: [u8; MEMORY_SIZE],
+    pub audio_memory: [u8; MEMORY_SIZE],
 }
 
 impl OktoConsole {
-    pub fn new() -> Self {
-        Self {
 
+    pub fn from(sprite: Vec<u8>, audio: Vec<u8>) -> Self {
+        // sprite
+        let mut sprite_memory = [0; MEMORY_SIZE];
+
+        for i in 0..sprite_memory.len() {
+            sprite_memory[i] = rand::random::<u8>();
+        }
+
+        for i in 0..sprite.len() {
+            match sprite_memory.get_mut(i) {
+                Some(b) => *b = sprite[i],
+                None => break,
+            }
+        }
+
+        // audio
+
+        let mut audio_memory = [0; MEMORY_SIZE];
+
+        for i in 0..audio_memory.len() {
+            audio_memory[i] = rand::random::<u8>();
+        }
+
+        for i in 0..audio.len() {
+            match audio_memory.get_mut(i) {
+                Some(b) => *b = audio[i],
+                None => break,
+            }
+        }
+
+        Self {
+            sprite_memory,
+            audio_memory,
         }
     }
 }

@@ -17,8 +17,8 @@ pub trait OktoInterfaceContext {
     fn set_reg_f(&mut self, value: u8);
     fn set_reg_x(&mut self, value: u16);
 
-    fn mem_load(&self, address: u16) -> Result<u8, String>;
-    fn mem_store(&mut self, address: u16, value: u8) -> Result<(), String>;
+    fn memory_load(&self, address: u16) -> Result<u8, String>;
+    fn memory_store(&mut self, address: u16, value: u8) -> Result<(), String>;
 }
 
 impl OktoInterfaceContext for OktoVM {
@@ -62,11 +62,11 @@ impl OktoInterfaceContext for OktoVM {
         self.registers.x = value;
     }
 
-    fn mem_load(&self, address: u16) -> Result<u8, String> {
-        self.memory.load(address)
+    fn memory_load(&self, address: u16) -> Result<u8, String> {
+        self.memory_load(address)
     }
 
-    fn mem_store(&mut self, address: u16, value: u8) -> Result<(), String> {
-        self.memory.store(address, value)
+    fn memory_store(&mut self, address: u16, value: u8) -> Result<(), String> {
+        self.memory_store(address, value)
     }
 }

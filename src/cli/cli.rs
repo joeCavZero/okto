@@ -16,7 +16,6 @@ pub const OKTO_SECTION_AUDIO: &str = ".audio";
 
 const PRINT_REGISTER_ARROW_WIDTH: usize = 14;
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OktoCLICommandKind {
     ExecuteRom,
@@ -37,7 +36,7 @@ pub struct OktoCLICommand {
 
 #[derive(Debug, Clone)]
 pub struct OktoCompiledProgram {
-    pub sections: Vec<(String, Vec<u8>)>,
+    pub sections: HashMap<String, Vec<u8>>,
     pub symbol_table_entries: Vec<(String, String)>,
 }
 
@@ -366,8 +365,8 @@ impl OktoCLI {
             }
         };
 
-        let sections = match binary_decode(&data) {
-            Ok(decoded) => decoded.into_iter().collect::<Vec<(String, Vec<u8>)>>(),
+        let mut sections = match binary_decode(&data) {
+            Ok(decoded) => decoded,
             Err(e) => {
                 debug::exit_with_error(
                     &format!("failed to decode binary from file {}: {}", file, e).into(),
@@ -376,7 +375,7 @@ impl OktoCLI {
             }
         };
 
-        self.execute_sections(&sections);
+        self.execute_sections(&mut sections);
     }
 
     fn build_command(&self) {
@@ -418,7 +417,7 @@ impl OktoCLI {
             }
         };
 
-        let compiled = match Self::build_program(input_path) {
+        let mut compiled = match Self::build_program(input_path) {
             Ok(compiled) => compiled,
             Err(error) => {
                 debug::exit_compiler_with_error_str(&error);
@@ -434,7 +433,7 @@ impl OktoCLI {
             self.write_binary(&compiled.sections, output_path);
         }
 
-        self.execute_sections(&compiled.sections);
+        self.execute_sections(&mut compiled.sections);
     }
 
     fn build_program(input_path: &String) -> Result<OktoCompiledProgram, String> {
@@ -442,6 +441,7 @@ impl OktoCLI {
             Ok(res) => res,
             Err(e) => return Err(e.error),
         };
+
         let mut ast = match OktoAST::from_positioned_tokens(
             &positioned_tokens,
             &vec![
@@ -452,10 +452,12 @@ impl OktoCLI {
             Ok(ast) => ast,
             Err(e) => return Err(format!("{}, {:?}", e.error, e.position)),
         };
+
         let symbol_table = match resolve(&mut ast) {
             Ok(st) => st,
             Err(e) => return Err(format!("{}, {:?}", e.error, e.position)),
         };
+
         let mut symbol_table_entries = symbol_table
             .iter()
             .map(|(label, addr)| (label.clone(), format!("{}", addr)))
@@ -471,7 +473,7 @@ impl OktoCLI {
         let sections = generated_sections
             .iter()
             .map(|section| (section.directive.get_name(), section.bytes.clone()))
-            .collect::<Vec<(String, Vec<u8>)>>();
+            .collect::<HashMap<String, Vec<u8>>>();
 
         Ok(OktoCompiledProgram {
             sections,
@@ -479,8 +481,13 @@ impl OktoCLI {
         })
     }
 
-    fn write_binary(&self, sections: &[(String, Vec<u8>)], output_path: &str) {
-        let binary = match binary_encode(OKTO_BINARY_VERSION, sections.to_vec()) {
+    fn write_binary(&self, sections: &HashMap<String, Vec<u8>>, output_path: &str) {
+        let binary_sections = sections
+            .iter()
+            .map(|(name, bytes)| (name.clone(), bytes.clone()))
+            .collect::<Vec<(String, Vec<u8>)>>();
+
+        let binary = match binary_encode(OKTO_BINARY_VERSION, binary_sections) {
             Ok(binary) => binary,
             Err(e) => {
                 debug::exit_compiler_with_error_str(&e.to_string());
@@ -499,28 +506,28 @@ impl OktoCLI {
         debug::compiler_message_str(&format!("Binary written to '{}'", output_path));
     }
 
-    fn execute_sections(&self, sections: &[(String, Vec<u8>)]) {
-        let mut code = Vec::new();
-        let mut custom = HashMap::new();
+    fn execute_sections(&self, sections: &mut HashMap<String, Vec<u8>>) {
+        let code = sections
+            .remove(OKTO_SECTION_CODE)
+            .unwrap_or_default();
+        let mut okto = OktoVM::from(code);
 
-        for (name, bytes) in sections {
-            if name == OKTO_SECTION_CODE {
-                code = bytes.clone();
-            } else {
-                custom.insert(name.clone(), bytes.clone());
-            }
-        }
+        let sprite = sections
+            .remove(OKTO_SECTION_SPRITE)
+            .unwrap_or_default();
 
-        if !custom.contains_key(OKTO_SECTION_SPRITE) {
-            custom.insert(OKTO_SECTION_SPRITE.to_string(), Vec::new());
-        }
+        let audio = sections
+            .remove(OKTO_SECTION_AUDIO)
+            .unwrap_or_default();
 
-        if !custom.contains_key(OKTO_SECTION_AUDIO) {
-            custom.insert(OKTO_SECTION_AUDIO.to_string(), Vec::new());
-        }
-
-        let mut okto = OktoVM::from(code, custom);
-        okto.set_interface(Box::new(OktoConsole::new()));
+        okto.set_interface(
+            Box::new(
+                OktoConsole::from(
+                    sprite,
+                    audio,
+                )
+            )
+        );
 
         match okto.execute() {
             Ok(()) => {
@@ -569,10 +576,7 @@ impl OktoCLI {
 
     fn print_u8_register(name: &str, value: u8) {
         let label_str = format!("[{}]", name);
-        let value_str = format!(
-            "[0b{:08b}]",
-            value,
-        );
+        let value_str = format!("[0b{:08b}]", value);
 
         let arrow_len = PRINT_REGISTER_ARROW_WIDTH.saturating_sub(label_str.len());
         let mut arrow = "-".repeat(arrow_len);
@@ -583,10 +587,7 @@ impl OktoCLI {
 
     fn print_u16_register(name: &str, value: u16) {
         let label_str = format!("[{}]", name);
-        let value_str = format!(
-            "[0b{:016b}]",
-            value,
-        );
+        let value_str = format!("[0b{:016b}]", value);
 
         let arrow_len = PRINT_REGISTER_ARROW_WIDTH.saturating_sub(label_str.len());
         let mut arrow = "-".repeat(arrow_len);

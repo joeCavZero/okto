@@ -7,3 +7,4 @@ edition = "2024"
 rand = "*"
 colored = "3.0.0"
 supports-color = "3.0.2"
+raylib = { version = "5.5.1", features = [] }

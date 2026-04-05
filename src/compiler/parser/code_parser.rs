@@ -1,6 +1,6 @@
 use crate::compiler::*;
-use crate::utils::*;
 use crate::debug::*;
+use crate::utils::*;
 
 pub fn parse_code_section(
     positioned_tokens: &Vec<OktoPositionedToken>,
@@ -181,6 +181,29 @@ pub fn parse_code_section(
                     i += 1;
                 }
 
+                OktoPseudoInstruction::Lla | OktoPseudoInstruction::Laa => {
+                    let (reg, label, consumed) =
+                        match read_reg_label_sequence(&positioned_tokens, i + 1, &current.position)
+                        {
+                            Ok(result) => result,
+                            Err(err) => {
+                                return Err(OktoPositionedError::new(
+                                    format!("Error parsing pseudo-instruction: {}", err.error),
+                                    err.position,
+                                ));
+                            }
+                        };
+
+                    code_items.push(OktoCodeItem::LabelsInstrRegImm(
+                        std::mem::take(&mut label_accumulator),
+                        current.clone(),
+                        reg,
+                        label,
+                    ));
+
+                    i += 1 + consumed;
+                }
+
                 OktoPseudoInstruction::La => {
                     let (label, consumed) =
                         match read_label_sequence(&positioned_tokens, i + 1, &current.position) {
@@ -307,23 +330,35 @@ fn read_label_sequence(
     start_index: usize,
     base_position: &OktoPosition,
 ) -> Result<(OktoPositionedToken, usize), OktoPositionedError> {
-    let token = match positioned_tokens.get(start_index) {
-        Some(token) => token,
-        None => {
-            return Err(OktoPositionedError::new(
-                "Expected an identifier".to_string(),
-                base_position.clone(),
-            ));
-        }
+    let label = match expect_identifier(positioned_tokens, start_index, base_position) {
+        Ok(value) => value,
+        Err(err) => return Err(err),
     };
 
-    match token.token {
-        OktoToken::Identifier(_) => Ok((token.clone(), 1)),
-        _ => Err(OktoPositionedError::new(
-            "Expected an identifier".to_string(),
-            token.position.clone(),
-        )),
-    }
+    Ok((label, 1))
+}
+
+fn read_reg_label_sequence(
+    positioned_tokens: &[OktoPositionedToken],
+    start_index: usize,
+    base_position: &OktoPosition,
+) -> Result<(OktoPositionedToken, OktoPositionedToken, usize), OktoPositionedError> {
+    let reg = match expect_register(positioned_tokens, start_index, base_position) {
+        Ok(value) => value,
+        Err(err) => return Err(err),
+    };
+
+    let comma = match expect_comma(positioned_tokens, start_index + 1, &reg.position) {
+        Ok(value) => value,
+        Err(err) => return Err(err),
+    };
+
+    let label = match expect_identifier(positioned_tokens, start_index + 2, &comma.position) {
+        Ok(value) => value,
+        Err(err) => return Err(err),
+    };
+
+    Ok((reg, label, 3))
 }
 
 fn expect_char_literal(
@@ -422,3 +457,26 @@ fn expect_number_literal(
     }
 }
 
+fn expect_identifier(
+    positioned_tokens: &[OktoPositionedToken],
+    index: usize,
+    fallback_position: &OktoPosition,
+) -> Result<OktoPositionedToken, OktoPositionedError> {
+    let token = match positioned_tokens.get(index) {
+        Some(token) => token,
+        None => {
+            return Err(OktoPositionedError::new(
+                "Expected an identifier".to_string(),
+                fallback_position.clone(),
+            ));
+        }
+    };
+
+    match token.token {
+        OktoToken::Identifier(_) => Ok(token.clone()),
+        _ => Err(OktoPositionedError::new(
+            "Expected an identifier".to_string(),
+            token.position.clone(),
+        )),
+    }
+}

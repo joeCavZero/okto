@@ -55,6 +55,8 @@ impl OktoToken {
             "nope" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Nope)),
             "li" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Li)),
             "lchr" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Lchr)),
+            "lla" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Lla)),
+            "laa" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::Laa)),
             "la" => Ok(OktoToken::PseudoInstruction(OktoPseudoInstruction::La)),
 
             // general registers

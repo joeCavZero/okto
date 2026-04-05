@@ -1,0 +1,15 @@
+pub const OKTO_RENDER_LINE: u8 = 50;
+
+pub const OKTO_EXIT: u8 = 200;
+
+pub const OKTO_PRINT_UNSIGNED: u8 = 201;
+pub const OKTO_PRINT_SIGNED: u8 = 202;
+pub const OKTO_PRINT_CHAR: u8 = 203;
+pub const OKTO_PRINT_DOUBLE_UNSIGNED: u8 = 204;
+pub const OKTO_PRINT_DOUBLE_SIGNED: u8 = 205;
+
+pub const OKTO_PRINTLN_UNSIGNED: u8 = 206;
+pub const OKTO_PRINTLN_SIGNED: u8 = 207;
+pub const OKTO_PRINTLN_CHAR: u8 = 208;
+pub const OKTO_PRINTLN_DOUBLE_UNSIGNED: u8 = 209;
+pub const OKTO_PRINTLN_DOUBLE_SIGNED: u8 = 210;

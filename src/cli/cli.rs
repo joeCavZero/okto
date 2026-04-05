@@ -11,6 +11,8 @@ pub const OKTO_BINARY_VERSION: u16 = 1;
 pub const OKTO_DEFAULT_OUTPUT_PATH: &str = "out.bin";
 
 pub const OKTO_SECTION_CODE: &str = ".code";
+pub const OKTO_SECTION_COLOR: &str = ".color";
+pub const OKTO_SECTION_PALETTE: &str = ".palette";
 pub const OKTO_SECTION_SPRITE: &str = ".sprite";
 pub const OKTO_SECTION_AUDIO: &str = ".audio";
 
@@ -445,6 +447,8 @@ impl OktoCLI {
         let mut ast = match OktoAST::from_positioned_tokens(
             &positioned_tokens,
             &vec![
+                (OKTO_SECTION_COLOR.to_string(), OktoSectionType::Data),
+                (OKTO_SECTION_PALETTE.to_string(), OktoSectionType::Data),
                 (OKTO_SECTION_SPRITE.to_string(), OktoSectionType::Data),
                 (OKTO_SECTION_AUDIO.to_string(), OktoSectionType::Data),
             ],
@@ -512,6 +516,14 @@ impl OktoCLI {
             .unwrap_or_default();
         let mut okto = OktoVM::from(code);
 
+        let color = sections
+            .remove(OKTO_SECTION_COLOR)
+            .unwrap_or_default();
+
+        let palette = sections
+            .remove(OKTO_SECTION_PALETTE)
+            .unwrap_or_default();
+
         let sprite = sections
             .remove(OKTO_SECTION_SPRITE)
             .unwrap_or_default();
@@ -522,7 +534,9 @@ impl OktoCLI {
 
         okto.set_interface(
             Box::new(
-                OktoConsole::from(
+                OktoConsoleInterface::from(
+                    color,
+                    palette,
                     sprite,
                     audio,
                 )

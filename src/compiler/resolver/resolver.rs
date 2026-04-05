@@ -440,6 +440,8 @@ fn expanded_size_of_code_item(item: &OktoCodeItem) -> usize {
 
         OktoCodeItem::LabelsInstrRegImm(_, instruction, _, _) => match instruction.token {
             OktoToken::PseudoInstruction(OktoPseudoInstruction::Li) => 2,
+            OktoToken::PseudoInstruction(OktoPseudoInstruction::Lla) => 2,
+            OktoToken::PseudoInstruction(OktoPseudoInstruction::Laa) => 2,
             OktoToken::PseudoInstruction(OktoPseudoInstruction::Lchr) => 2,
             _ => 1,
         },
@@ -473,7 +475,7 @@ fn expand_code_item(
             _ => Ok(vec![OktoCodeItem::LabelsInstr(labels, instruction)]),
         },
 
-        OktoCodeItem::LabelsInstrRegImm(labels, instruction, reg, imm) => match instruction.token {
+                OktoCodeItem::LabelsInstrRegImm(labels, instruction, reg, imm) => match instruction.token {
             OktoToken::PseudoInstruction(OktoPseudoInstruction::Li) => {
                 let pos = instruction.position.clone();
 
@@ -550,6 +552,90 @@ fn expand_code_item(
                         make_instruction_token(OktoInstruction::Lai, &pos),
                         reg.clone(),
                         make_number_token(&high_nibble, &imm.position),
+                    ),
+                ])
+            }
+
+            OktoToken::PseudoInstruction(OktoPseudoInstruction::Lla) => {
+                let pos = instruction.position.clone();
+
+                let label_name = match &imm.token {
+                    OktoToken::Identifier(name) => name.clone(),
+                    _ => {
+                        return Err(OktoPositionedError::new(
+                            "Expected identifier in 'lla'".to_string(),
+                            imm.position.clone(),
+                        ));
+                    }
+                };
+
+                let address = match symbol_table.get(&label_name) {
+                    Some(value) => *value,
+                    None => {
+                        return Err(OktoPositionedError::new(
+                            format!("Address not found for label '{}'", label_name),
+                            imm.position.clone(),
+                        ));
+                    }
+                };
+
+                let nibble_0 = nibble_literal((address >> 0) & 0x000F);
+                let nibble_1 = nibble_literal((address >> 4) & 0x000F);
+
+                Ok(vec![
+                    OktoCodeItem::LabelsInstrRegImm(
+                        labels,
+                        make_instruction_token(OktoInstruction::Lli, &pos),
+                        reg.clone(),
+                        make_number_token(&nibble_0, &imm.position),
+                    ),
+                    OktoCodeItem::LabelsInstrRegImm(
+                        Vec::new(),
+                        make_instruction_token(OktoInstruction::Lai, &pos),
+                        reg.clone(),
+                        make_number_token(&nibble_1, &imm.position),
+                    ),
+                ])
+            }
+
+            OktoToken::PseudoInstruction(OktoPseudoInstruction::Laa) => {
+                let pos = instruction.position.clone();
+
+                let label_name = match &imm.token {
+                    OktoToken::Identifier(name) => name.clone(),
+                    _ => {
+                        return Err(OktoPositionedError::new(
+                            "Expected identifier in 'laa'".to_string(),
+                            imm.position.clone(),
+                        ));
+                    }
+                };
+
+                let address = match symbol_table.get(&label_name) {
+                    Some(value) => *value,
+                    None => {
+                        return Err(OktoPositionedError::new(
+                            format!("Address not found for label '{}'", label_name),
+                            imm.position.clone(),
+                        ));
+                    }
+                };
+
+                let nibble_2 = nibble_literal((address >> 8) & 0x000F);
+                let nibble_3 = nibble_literal((address >> 12) & 0x000F);
+
+                Ok(vec![
+                    OktoCodeItem::LabelsInstrRegImm(
+                        labels,
+                        make_instruction_token(OktoInstruction::Lli, &pos),
+                        reg.clone(),
+                        make_number_token(&nibble_2, &imm.position),
+                    ),
+                    OktoCodeItem::LabelsInstrRegImm(
+                        Vec::new(),
+                        make_instruction_token(OktoInstruction::Lai, &pos),
+                        reg.clone(),
+                        make_number_token(&nibble_3, &imm.position),
                     ),
                 ])
             }

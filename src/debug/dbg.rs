@@ -111,6 +111,15 @@ pub fn message_str(msg: &str) {
     );
 }
 
+pub fn compiler_message_str(msg: &str) {
+    println!(
+        "{} {} {}",
+        get_coloured_okto_name(),
+        get_coloured_compiler_name(),
+        msg,
+    );
+}
+
 pub fn exit_with_error(err: &OktoError) {
     println!(
         "\n{} {} {}",

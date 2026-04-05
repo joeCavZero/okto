@@ -63,10 +63,10 @@ impl OktoInterfaceContext for OktoVM {
     }
 
     fn mem_load(&self, address: u16) -> Result<u8, String> {
-        self.main_memory.load(address)
+        self.memory.load(address)
     }
 
     fn mem_store(&mut self, address: u16, value: u8) -> Result<(), String> {
-        self.main_memory.store(address, value)
+        self.memory.store(address, value)
     }
 }

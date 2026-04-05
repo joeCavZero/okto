@@ -1,70 +1,125 @@
-
-/* Modos de uso:
-    okto <file.rom>
-    okto <file.rom> --registers/-r
-    okto --help/-h
-    okto --version/-v
-
-    okto compiler <file.asm>
-    okto compiler <file.asm> --symbol-tabel/-st
-    okto compiler <file.asm> --help/-h
-*/
-
 use std::collections::HashMap;
 use std::io::Write;
 
+use crate::compiler::*;
 use crate::console::*;
 use crate::debug;
 use crate::vm::*;
 
+pub const OKTO_VERSION: &str = "0.1.0";
+pub const OKTO_BINARY_VERSION: u16 = 1;
+pub const OKTO_DEFAULT_OUTPUT_PATH: &str = "out.bin";
+
+pub const OKTO_SECTION_CODE: &str = ".code";
+pub const OKTO_SECTION_SPRITE: &str = ".sprite";
+pub const OKTO_SECTION_AUDIO: &str = ".audio";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OktoCLICommandKind {
+    ExecuteRom,
+    Build,
+    Run,
+    Help,
+    Version,
+}
+
+#[derive(Debug, Clone)]
+pub struct OktoCLICommand {
+    pub kind: OktoCLICommandKind,
+    pub input_path: Option<String>,
+    pub output_path: Option<String>,
+    pub symbol_table: bool,
+    pub registers: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct OktoCompiledProgram {
+    pub sections: Vec<(String, Vec<u8>)>,
+    pub symbol_table_entries: Vec<(String, String)>,
+}
 
 #[derive(Debug)]
 pub struct OktoCLI {
-    pub file_path: Option<String>,
-    pub registers: bool,
-    pub help: bool,
-    pub version: bool,
+    pub command: OktoCLICommand,
 }
 
 impl OktoCLI {
-    pub fn new() -> Self {
+    pub fn from_env() -> Self {
         Self {
-            file_path: None,
-            registers: false,
-            help: false,
-            version: false,
+            command: Self::parse_env_args(),
         }
     }
 
-    pub fn scan(&mut self) {
-        let args = std::env::args().collect::<Vec<String>>();
+    fn parse_env_args() -> OktoCLICommand {
+        let args = std::env::args().skip(1).collect::<Vec<String>>();
 
-        if args.len() < 2 {
-            self.help = true;
-            return;
+        if args.is_empty() {
+            return Self::help_command();
         }
 
-        let mut i = 1;
+        match args[0].as_str() {
+            "-h" | "--help" => {
+                if args.len() > 1 {
+                    debug::exit_with_error_str("incorrect usage of options");
+                }
+                Self::help_command()
+            }
 
-        while i < args.len() {
-            let arg = &args[i];
+            "-v" | "--version" => {
+                if args.len() > 1 {
+                    debug::exit_with_error_str("incorrect usage of options");
+                }
+                Self::version_command()
+            }
 
+            "build" => Self::parse_build_command(&args[1..]),
+            "run" => Self::parse_run_command(&args[1..]),
+            _ => Self::parse_execute_command(&args),
+        }
+    }
+
+    fn help_command() -> OktoCLICommand {
+        OktoCLICommand {
+            kind: OktoCLICommandKind::Help,
+            input_path: None,
+            output_path: None,
+            symbol_table: false,
+            registers: false,
+        }
+    }
+
+    fn version_command() -> OktoCLICommand {
+        OktoCLICommand {
+            kind: OktoCLICommandKind::Version,
+            input_path: None,
+            output_path: None,
+            symbol_table: false,
+            registers: false,
+        }
+    }
+
+    fn parse_execute_command(args: &[String]) -> OktoCLICommand {
+        let mut input_path = None;
+        let mut registers = false;
+
+        for arg in args {
             match arg.as_str() {
                 "-r" | "--registers" => {
-                    self.registers = true;
+                    registers = true;
                 }
 
                 "-h" | "--help" => {
-                    self.help = true;
+                    if args.len() > 1 {
+                        debug::exit_with_error_str("incorrect usage of options");
+                    }
+                    return Self::help_command();
                 }
 
                 "-v" | "--version" => {
-                    self.version = true;
-                }
-
-                "compiler" => {
-                    // deixa o main tratar
-                    break;
+                    if args.len() > 1 {
+                        debug::exit_with_error_str("incorrect usage of options");
+                    }
+                    return Self::version_command();
                 }
 
                 _ if arg.starts_with('-') => {
@@ -72,57 +127,226 @@ impl OktoCLI {
                 }
 
                 _ => {
-                    if self.file_path.is_some() {
+                    if input_path.is_some() {
                         debug::exit_with_error_str("cannot specify more than one file");
-                        std::process::exit(1);
                     }
-                    self.file_path = Some(arg.clone());
+                    input_path = Some(arg.clone());
+                }
+            }
+        }
+
+        if input_path.is_none() {
+            debug::exit_with_error_str("no file provided");
+        }
+
+        OktoCLICommand {
+            kind: OktoCLICommandKind::ExecuteRom,
+            input_path,
+            output_path: None,
+            symbol_table: false,
+            registers,
+        }
+    }
+
+    fn parse_build_command(args: &[String]) -> OktoCLICommand {
+        let mut input_path = None;
+        let mut output_path = None;
+        let mut symbol_table = false;
+        let mut help = false;
+
+        let mut i = 0;
+        while i < args.len() {
+            let arg = &args[i];
+
+            match arg.as_str() {
+                "-st" | "--symbol-table" => {
+                    symbol_table = true;
+                }
+
+                "-h" | "--help" => {
+                    help = true;
+                }
+
+                "-o" | "--out" => {
+                    let out = match args.get(i + 1) {
+                        Some(path) => path.clone(),
+                        None => {
+                            debug::exit_compiler_with_error_str(
+                                "expected an output file path after output flag",
+                            );
+                            unreachable!()
+                        }
+                    };
+
+                    if output_path.is_some() {
+                        debug::exit_compiler_with_error_str(
+                            "cannot specify more than one output file",
+                        );
+                    }
+
+                    output_path = Some(out);
+                    i += 1;
+                }
+
+                _ if arg.starts_with('-') => {
+                    debug::exit_compiler_with_error_str(&format!("unknown option '{}'", arg));
+                }
+
+                _ => {
+                    if input_path.is_some() {
+                        debug::exit_compiler_with_error_str(
+                            "cannot specify more than one ASM file",
+                        );
+                    }
+
+                    input_path = Some(arg.clone());
                 }
             }
 
             i += 1;
         }
 
-        // validações
-        let mut invalid = false;
+        if help {
+            if input_path.is_some() || output_path.is_some() || symbol_table {
+                debug::exit_compiler_with_error_str("incorrect usage of options");
+            }
 
-        if self.version && self.help {
-            invalid = true;
+            return OktoCLICommand {
+                kind: OktoCLICommandKind::Help,
+                input_path: None,
+                output_path: None,
+                symbol_table: false,
+                registers: false,
+            };
         }
 
-        if (self.version || self.help)
-            && (self.file_path.is_some() || self.registers)
-        {
-            invalid = true;
+        if input_path.is_none() {
+            debug::exit_compiler_with_error_str("no input file specified");
         }
 
-        if invalid {
-            self.file_path = None;
-            self.registers = false;
-            self.version = false;
-            self.help = true;
+        OktoCLICommand {
+            kind: OktoCLICommandKind::Build,
+            input_path,
+            output_path,
+            symbol_table,
+            registers: false,
+        }
+    }
 
-            debug::exit_with_error_str("Incorrect usage of options");
+    fn parse_run_command(args: &[String]) -> OktoCLICommand {
+        let mut input_path = None;
+        let mut output_path = None;
+        let mut symbol_table = false;
+        let mut registers = false;
+        let mut help = false;
+
+        let mut i = 0;
+        while i < args.len() {
+            let arg = &args[i];
+
+            match arg.as_str() {
+                "-st" | "--symbol-table" => {
+                    symbol_table = true;
+                }
+
+                "-r" | "--registers" => {
+                    registers = true;
+                }
+
+                "-h" | "--help" => {
+                    help = true;
+                }
+
+                "-o" | "--out" => {
+                    let out = match args.get(i + 1) {
+                        Some(path) => path.clone(),
+                        None => {
+                            debug::exit_compiler_with_error_str(
+                                "expected an output file path after output flag",
+                            );
+                            unreachable!()
+                        }
+                    };
+
+                    if output_path.is_some() {
+                        debug::exit_compiler_with_error_str(
+                            "cannot specify more than one output file",
+                        );
+                    }
+
+                    output_path = Some(out);
+                    i += 1;
+                }
+
+                _ if arg.starts_with('-') => {
+                    debug::exit_compiler_with_error_str(&format!("unknown option '{}'", arg));
+                }
+
+                _ => {
+                    if input_path.is_some() {
+                        debug::exit_compiler_with_error_str(
+                            "cannot specify more than one ASM file",
+                        );
+                    }
+
+                    input_path = Some(arg.clone());
+                }
+            }
+
+            i += 1;
+        }
+
+        if help {
+            if input_path.is_some() || output_path.is_some() || symbol_table || registers {
+                debug::exit_compiler_with_error_str("incorrect usage of options");
+            }
+
+            return OktoCLICommand {
+                kind: OktoCLICommandKind::Help,
+                input_path: None,
+                output_path: None,
+                symbol_table: false,
+                registers: false,
+            };
+        }
+
+        if input_path.is_none() {
+            debug::exit_compiler_with_error_str("no input file specified");
+        }
+
+        OktoCLICommand {
+            kind: OktoCLICommandKind::Run,
+            input_path,
+            output_path,
+            symbol_table,
+            registers,
         }
     }
 
     pub fn run(&self) {
-        if self.version {
-            debug::message_str("Version 0.1.0");
-            return;
+        match self.command.kind {
+            OktoCLICommandKind::Help => self.print_help(),
+            OktoCLICommandKind::Version => {
+                debug::message_str(&format!("Version {}", OKTO_VERSION));
+            }
+            OktoCLICommandKind::ExecuteRom => self.execute_rom_command(),
+            OktoCLICommandKind::Build => self.build_command(),
+            OktoCLICommandKind::Run => self.run_command(),
         }
+    }
 
-        if self.help {
-            debug::message_str("Usage:");
-            debug::message_str("  okto <file.rom>");
-            debug::message_str("  okto <file.rom> --registers");
-            debug::message_str("  okto --help");
-            debug::message_str("  okto --version");
-            return;
-        }
+    fn print_help(&self) {
+        debug::message_str("Usage:");
+        debug::message_str("  okto <file.rom> [--registers]");
+        debug::message_str("  okto build <file.asm> [--symbol-table] [--out <file.rom>]");
+        debug::message_str("  okto run <file.asm> [--symbol-table] [--registers] [--out <file.rom>]",);
+        debug::message_str("  okto --help");
+        debug::message_str("  okto --version");
+    }
 
-        let file = match &self.file_path {
-            Some(f) => f,
+    fn execute_rom_command(&self) {
+        let file = match &self.command.input_path {
+            Some(file) => file,
             None => {
                 debug::exit_with_error_str("no file provided");
                 return;
@@ -132,38 +356,195 @@ impl OktoCLI {
         let data = match std::fs::read(file) {
             Ok(raw) => raw,
             Err(e) => {
-                debug::exit_with_error(&format!("Failed to read file {}: {}", file, e));
-                unreachable!()
+                debug::exit_with_error(&format!("failed to read file {}: {}", file, e));
+                return;
             }
         };
-        
-        match binary_decode(&data) {
-            Ok(mem) => {
-                let code = mem.get(".code").cloned().unwrap_or_default();
-                let sprite = mem.get(".sprite").cloned().unwrap_or_default();
-                let audio = mem.get(".audio").cloned().unwrap_or_default();
-                let mut custom = HashMap::new();
-                custom.insert(".sprite".to_string(), sprite);
-                custom.insert(".audio".to_string(), audio);
-                let mut okto = OktoVM::from(code, custom);
-                okto.set_interface(
-                    Box::new(
-                        OktoConsole::new(),
-                    ),
+
+        let sections = match binary_decode(&data) {
+            Ok(decoded) => decoded.into_iter().collect::<Vec<(String, Vec<u8>)>>(),
+            Err(e) => {
+                debug::exit_with_error(
+                    &format!("failed to decode binary from file {}: {}", file, e).into(),
                 );
-                match okto.execute() {
-                    Ok(()) => {
-                        println!();
-                        std::io::stdout().flush().unwrap();
-                    }
-                    Err(e) => debug::exit_with_error(&e),
-                }
+                return;
             }
-            Err(e) => debug::exit_with_error(&format!("Failed to decode binary from file {}: {}", file, e).into()),
+        };
+
+        self.execute_sections(&sections);
+    }
+
+    fn build_command(&self) {
+        let input_path = match &self.command.input_path {
+            Some(path) => path,
+            None => {
+                debug::exit_compiler_with_error_str("no input file specified");
+                return;
+            }
+        };
+
+        let compiled = match Self::build_program(input_path) {
+            Ok(compiled) => compiled,
+            Err(error) => {
+                debug::exit_compiler_with_error_str(&error);
+                return;
+            }
+        };
+
+        if self.command.symbol_table {
+            Self::print_symbol_table(&compiled.symbol_table_entries);
         }
 
-        if self.registers {
+        let output_path = self
+            .command
+            .output_path
+            .as_deref()
+            .unwrap_or(OKTO_DEFAULT_OUTPUT_PATH);
+
+        self.write_binary(&compiled.sections, output_path);
+    }
+
+    fn run_command(&self) {
+        let input_path = match &self.command.input_path {
+            Some(path) => path,
+            None => {
+                debug::exit_compiler_with_error_str("no input file specified");
+                return;
+            }
+        };
+
+        let compiled = match Self::build_program(input_path) {
+            Ok(compiled) => compiled,
+            Err(error) => {
+                debug::exit_compiler_with_error_str(&error);
+                return;
+            }
+        };
+
+        if self.command.symbol_table {
+            Self::print_symbol_table(&compiled.symbol_table_entries);
+        }
+
+        if let Some(output_path) = self.command.output_path.as_deref() {
+            self.write_binary(&compiled.sections, output_path);
+        }
+
+        self.execute_sections(&compiled.sections);
+    }
+
+    fn build_program(input_path: &String) -> Result<OktoCompiledProgram, String> {
+        let (positioned_tokens, _) = match lex_and_process_file(input_path) {
+            Ok(res) => res,
+            Err(e) => return Err(e.error),
+        };
+        let mut ast = match OktoAST::from_positioned_tokens(
+            &positioned_tokens,
+            &vec![
+                (OKTO_SECTION_SPRITE.to_string(), OktoSectionType::Data),
+                (OKTO_SECTION_AUDIO.to_string(), OktoSectionType::Data),
+            ],
+        ) {
+            Ok(ast) => ast,
+            Err(e) => return Err(format!("{}, {:?}", e.error, e.position)),
+        };
+        let symbol_table = match resolve(&mut ast) {
+            Ok(st) => st,
+            Err(e) => return Err(format!("{}, {:?}", e.error, e.position)),
+        };
+        let mut symbol_table_entries = symbol_table
+            .iter()
+            .map(|(label, addr)| (label.clone(), format!("{}", addr)))
+            .collect::<Vec<(String, String)>>();
+
+        symbol_table_entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let generated_sections = match generate_bytes_from_ast(&ast) {
+            Ok(sections) => sections,
+            Err(e) => return Err(format!("{}, {:?}", e.error, e.position)),
+        };
+
+        let sections = generated_sections
+            .iter()
+            .map(|section| (section.directive.get_name(), section.bytes.clone()))
+            .collect::<Vec<(String, Vec<u8>)>>();
+
+        Ok(OktoCompiledProgram {
+            sections,
+            symbol_table_entries,
+        })
+    }
+
+    fn write_binary(&self, sections: &[(String, Vec<u8>)], output_path: &str) {
+        let binary = match binary_encode(OKTO_BINARY_VERSION, sections.to_vec()) {
+            Ok(binary) => binary,
+            Err(e) => {
+                debug::exit_compiler_with_error_str(&e.to_string());
+                return;
+            }
+        };
+
+        if let Err(e) = std::fs::write(output_path, &binary) {
+            debug::exit_compiler_with_error_str(&format!(
+                "could not write output file '{}': {}",
+                output_path, e
+            ));
+            return;
+        }
+
+        debug::compiler_message_str(&format!("Binary written to '{}'", output_path));
+    }
+
+    fn execute_sections(&self, sections: &[(String, Vec<u8>)]) {
+        let mut code = Vec::new();
+        let mut custom = HashMap::new();
+
+        for (name, bytes) in sections {
+            if name == OKTO_SECTION_CODE {
+                code = bytes.clone();
+            } else {
+                custom.insert(name.clone(), bytes.clone());
+            }
+        }
+
+        if !custom.contains_key(OKTO_SECTION_SPRITE) {
+            custom.insert(OKTO_SECTION_SPRITE.to_string(), Vec::new());
+        }
+
+        if !custom.contains_key(OKTO_SECTION_AUDIO) {
+            custom.insert(OKTO_SECTION_AUDIO.to_string(), Vec::new());
+        }
+
+        let mut okto = OktoVM::from(code, custom);
+        okto.set_interface(Box::new(OktoConsole::new()));
+
+        match okto.execute() {
+            Ok(()) => {
+                println!();
+                std::io::stdout().flush().unwrap();
+            }
+            Err(e) => debug::exit_with_error(&e),
+        }
+
+        if self.command.registers {
             debug::message_str("(Registers will be displayed)");
         }
+    }
+
+    fn print_symbol_table(entries: &[(String, String)]) {
+        debug::message_str("======== Symbol Table =========");
+
+        for (label, addr) in entries {
+            let label_str = format!("[{}]", label);
+            let addr_str = format!("[{}]", addr);
+
+            let total_width: usize = 25;
+            let arrow_len = total_width.saturating_sub(label_str.len());
+            let mut arrow = "-".repeat(arrow_len);
+            arrow.push('>');
+
+            debug::message_str(&format!("{} {} {}", label_str, arrow, addr_str));
+        }
+
+        debug::message_str("===============================");
     }
 }

@@ -472,10 +472,10 @@ where
     const TOKEN_ENDERS: &[&str] = &[":"];
     const TOKEN_STARTERS: &[&str] = &["@"];
 
-    const STRING_SEPARATORS: &[(&str, &str)] = &[("\"", "\""), ("#\"", "\"#")];
+    const STRING_SEPARATORS: &[(&str, &str)] = &[("\"", "\""), ("s\"", "\"s")];
     const CHAR_SEPARATORS: &[(&str, &str)] = &[("'", "'")];
 
-    const LINE_COMMENT: &str = "//";
+    const LINE_COMMENT: &str = "#";
     const MULTI_LINE_COMMENT: (&str, &str) = ("/*", "*/");
     const SPACE: char = ' ';
     const NEW_LINE: char = '\n';

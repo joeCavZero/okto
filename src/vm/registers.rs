@@ -53,14 +53,4 @@ impl OktoRegisters {
         }
     }
 
-    pub fn increment_pc_by(&mut self, n: u16) -> Result<(), String> {
-        match self.pc.checked_add(n) {
-            Some(v) => {
-                self.pc = v;
-                Ok(())
-            }
-            None => Err("Program counter overflow".to_string()),
-        }
-    }
-
 }

@@ -1,8 +1,8 @@
-pub struct OktoMainMemory {
+pub struct OktoMemory {
     pub memory: [u8; 65536],
 }
 
-impl OktoMainMemory {
+impl OktoMemory {
     pub fn from(m: [u8; 65536]) -> Self {
         Self { memory: m }
     }
@@ -10,7 +10,7 @@ impl OktoMainMemory {
     pub fn load(&self, position: u16) -> Result<u8, String> {
         match self.memory.get(position as usize) {
             Some(v) => Ok(*v),
-            None => Err(format!("Main memory load out of bounds at 0x{:04X}", position)),
+            None => Err(format!("Memory load out of bounds at 0x{:04X}", position)),
         }
     }
 
@@ -20,7 +20,7 @@ impl OktoMainMemory {
                 *cell = value;
                 Ok(())
             }
-            None => Err(format!("Main memory store out of bounds at 0x{:04X}", position)),
+            None => Err(format!("Memory store out of bounds at 0x{:04X}", position)),
         }
     }
 

@@ -1,5 +1,5 @@
 pub struct OktoMainMemory {
-    memory: [u8; 65536],
+    pub memory: [u8; 65536],
 }
 
 impl OktoMainMemory {
@@ -26,7 +26,7 @@ impl OktoMainMemory {
 
     pub fn load_instruction(&mut self, position: u16) -> Result<u8, String> {
         // if 0x0000 ~ 0xFEFF -> get else Err
-        if position > 0xFF00 {
+        if position >= 0xFF00 {
             return Err(format!("Instruction memory load out of bounds at position {}", position));
         }
         match self.memory.get(position as usize) {

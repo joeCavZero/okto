@@ -133,14 +133,14 @@ impl OktoVM {
                     OktoInstruction::Jmp => {
                         let tmp = self.registers.pc;
                         self.registers.pc = self.registers.x;
-                        self.registers.pc = tmp;
+                        self.registers.x = tmp;
                     }
 
                     OktoInstruction::Jeq => {
                         if self.registers.a == self.registers.b {
                             let tmp = self.registers.pc;
                             self.registers.pc = self.registers.x;
-                            self.registers.pc = tmp;
+                            self.registers.x = tmp;
                         }
                     }
 
@@ -148,7 +148,7 @@ impl OktoVM {
                         if self.registers.a != self.registers.b {
                             let tmp = self.registers.pc;
                             self.registers.pc = self.registers.x;
-                            self.registers.pc = tmp;
+                            self.registers.x = tmp;
                         }
                     }
 
@@ -156,7 +156,7 @@ impl OktoVM {
                         if self.registers.a > self.registers.b {
                             let tmp = self.registers.pc;
                             self.registers.pc = self.registers.x;
-                            self.registers.pc = tmp;
+                            self.registers.x = tmp;
                         }
                     }
 
@@ -164,7 +164,7 @@ impl OktoVM {
                         if self.registers.a < self.registers.b {
                             let tmp = self.registers.pc;
                             self.registers.pc = self.registers.x;
-                            self.registers.pc = tmp;
+                            self.registers.x = tmp;
                         }
                     }
 
@@ -177,17 +177,19 @@ impl OktoVM {
                     OktoInstruction::Swpx => {
                         // (b, a <-> [x_high, x_low])
                         let tmp = self.registers.x.to_be_bytes();
+                        self.registers.x = u16::from_be_bytes([self.registers.a, self.registers.b]);
                         self.registers.b = tmp[0];
                         self.registers.a = tmp[1];
                     }
 
                     OktoInstruction::Call => {
-                        let interface_option = self.interface.take();
-                        if let Some(mut interface) = interface_option {
-                            if interface.call(self) {
+                        let mut interface_option = self.interface.take();
+                        if let Some(ref mut interface) = interface_option {
+                            if interface.call(self) == true {
                                 break 'execution_loop;
                             }
                         }
+                        self.interface = interface_option;
                     }
 
                     _ => {

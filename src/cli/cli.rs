@@ -11,7 +11,9 @@
 */
 
 use std::collections::HashMap;
+use std::io::Write;
 
+use crate::console::*;
 use crate::debug;
 use crate::vm::*;
 
@@ -144,8 +146,16 @@ impl OktoCLI {
                 custom.insert(".sprite".to_string(), sprite);
                 custom.insert(".audio".to_string(), audio);
                 let mut okto = OktoVM::from(code, custom);
+                okto.set_interface(
+                    Box::new(
+                        OktoConsole::new(),
+                    ),
+                );
                 match okto.execute() {
-                    Ok(()) => {}
+                    Ok(()) => {
+                        println!();
+                        std::io::stdout().flush().unwrap();
+                    }
                     Err(e) => debug::exit_with_error(&e),
                 }
             }

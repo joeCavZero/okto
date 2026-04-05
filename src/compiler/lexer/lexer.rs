@@ -1022,20 +1022,72 @@ fn peek_char_at(s: &str, idx: usize) -> Option<char> {
 fn read_number_at(s: &str, start: usize) -> Option<(String, usize)> {
     let mut i = start;
     let mut out = String::new();
-    let mut saw_digit = false;
 
-    let first = match peek_char_at(s, i) {
-        Some(ch) => ch,
-        None => return None,
-    };
+    let first = peek_char_at(s, i)?;
+
+    // hexadecimal: 0xFFFF / 0xFF / 0xAB_CD
+    if first == '0' {
+        if let Some(prefix) = peek_char_at(s, i + 1) {
+            if prefix == 'x' || prefix == 'X' {
+                out.push('0');
+                out.push(prefix);
+                i += 2;
+
+                let (digits, new_i, saw_digit) =
+                    read_digits_with_underscores(s, i, is_hex_digit);
+
+                if !saw_digit {
+                    return None;
+                }
+
+                out.push_str(&digits);
+                i = new_i;
+
+                if let Some(suf) = peek_char_at(s, i) {
+                    if is_number_suffix(suf) {
+                        out.push(suf);
+                        i += suf.len_utf8();
+                    }
+                }
+
+                return Some((out, i - start));
+            }
+
+            // binário: 0b0000_1111 / 0b0101_0101_0101_0101
+            if prefix == 'b' || prefix == 'B' {
+                out.push('0');
+                out.push(prefix);
+                i += 2;
+
+                let (digits, new_i, saw_digit) =
+                    read_digits_with_underscores(s, i, is_bin_digit);
+
+                if !saw_digit {
+                    return None;
+                }
+
+                out.push_str(&digits);
+                i = new_i;
+
+                if let Some(suf) = peek_char_at(s, i) {
+                    if is_number_suffix(suf) {
+                        out.push(suf);
+                        i += suf.len_utf8();
+                    }
+                }
+
+                return Some((out, i - start));
+            }
+        }
+    }
+
+    // decimal / float / científico
+    let mut saw_digit = false;
 
     if is_ascii_digit(first) {
         // ok
     } else if first == '.' {
-        let next = match peek_char_at(s, i + 1) {
-            Some(ch) => ch,
-            None => return None,
-        };
+        let next = peek_char_at(s, i + 1)?;
         if !is_ascii_digit(next) {
             return None;
         }
@@ -1043,29 +1095,21 @@ fn read_number_at(s: &str, start: usize) -> Option<(String, usize)> {
         return None;
     }
 
-    while let Some(ch) = peek_char_at(s, i) {
-        if is_ascii_digit(ch) {
-            saw_digit = true;
-            out.push(ch);
-            i += ch.len_utf8();
-        } else {
-            break;
-        }
-    }
+    let (int_part, new_i, int_has_digit) =
+        read_digits_with_underscores(s, i, is_ascii_digit);
+    out.push_str(&int_part);
+    i = new_i;
+    saw_digit |= int_has_digit;
 
     if let Some('.') = peek_char_at(s, i) {
         out.push('.');
         i += 1;
 
-        while let Some(ch) = peek_char_at(s, i) {
-            if is_ascii_digit(ch) {
-                saw_digit = true;
-                out.push(ch);
-                i += ch.len_utf8();
-            } else {
-                break;
-            }
-        }
+        let (frac_part, new_i, frac_has_digit) =
+            read_digits_with_underscores(s, i, is_ascii_digit);
+        out.push_str(&frac_part);
+        i = new_i;
+        saw_digit |= frac_has_digit;
     }
 
     if let Some(ch) = peek_char_at(s, i) {
@@ -1084,20 +1128,15 @@ fn read_number_at(s: &str, start: usize) -> Option<(String, usize)> {
                 }
             }
 
-            let mut exp_digits = 0;
-            while let Some(d) = peek_char_at(s, i) {
-                if is_ascii_digit(d) {
-                    out.push(d);
-                    i += d.len_utf8();
-                    exp_digits += 1;
-                } else {
-                    break;
-                }
-            }
+            let (exp_part, new_i, exp_has_digit) =
+                read_digits_with_underscores(s, i, is_ascii_digit);
 
-            if exp_digits == 0 {
+            if !exp_has_digit {
                 return None;
             }
+
+            out.push_str(&exp_part);
+            i = new_i;
         }
     }
 
@@ -1277,3 +1316,56 @@ fn collect_macro_call_args(
         )
     )
 }
+
+fn is_hex_digit(ch: char) -> bool {
+    ch.is_ascii_hexdigit()
+}
+
+fn is_bin_digit(ch: char) -> bool {
+    matches!(ch, '0' | '1')
+}
+
+fn read_digits_with_underscores<F>(
+    s: &str,
+    mut i: usize,
+    mut is_valid_digit: F,
+) -> (String, usize, bool)
+where
+    F: FnMut(char) -> bool,
+{
+    let mut out = String::new();
+    let mut saw_digit = false;
+    let mut last_was_underscore = false;
+
+    while let Some(ch) = peek_char_at(s, i) {
+        if is_valid_digit(ch) {
+            saw_digit = true;
+            last_was_underscore = false;
+            out.push(ch);
+            i += ch.len_utf8();
+        } else if ch == '_' {
+            // só aceita underscore entre dígitos
+            if !saw_digit || last_was_underscore {
+                break;
+            }
+
+            let next_i = i + ch.len_utf8();
+            let Some(next_ch) = peek_char_at(s, next_i) else {
+                break;
+            };
+
+            if !is_valid_digit(next_ch) {
+                break;
+            }
+
+            last_was_underscore = true;
+            out.push(ch);
+            i += ch.len_utf8();
+        } else {
+            break;
+        }
+    }
+
+    (out, i, saw_digit)
+}
+

@@ -171,8 +171,8 @@ impl OktoVM {
 
                     OktoInstruction::Swpf => {
                         let tmp = self.registers.f;
-                        self.registers.f = self.registers.a;
-                        self.registers.a = tmp;
+                        self.registers.f = self.registers.b;
+                        self.registers.b = tmp;
                     }
 
                     OktoInstruction::Swpx => {

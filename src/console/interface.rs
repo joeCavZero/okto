@@ -77,6 +77,7 @@ impl OktoInterface for OktoConsoleInterface {
 
     fn execution(&mut self, _o: &mut dyn OktoInterfaceContext) -> bool {
         self.console.present_canvas();
+        println!("okto");
         false
     }
 }

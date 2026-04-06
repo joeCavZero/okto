@@ -4,6 +4,7 @@ use crate::vm::*;
 pub trait OktoInterface {
     fn call(&mut self, o: &mut dyn OktoInterfaceContext) -> bool {false}
     fn execution(&mut self, o: &mut dyn OktoInterfaceContext) -> bool {false}
+    fn exit(&mut self, o: &mut dyn OktoInterfaceContext) {}
 }
 
 pub trait OktoInterfaceContext {
@@ -15,8 +16,6 @@ pub trait OktoInterfaceContext {
     fn reg_pc(&self) -> u16;
     fn reg_ir(&self) -> u8;
 
-
-
     fn set_reg_a(&mut self, value: u8);
     fn set_reg_b(&mut self, value: u8);
     fn set_reg_c(&mut self, value: u8);
@@ -24,9 +23,12 @@ pub trait OktoInterfaceContext {
     fn set_reg_x(&mut self, value: u16);
     fn set_reg_pc(&mut self, value: u16);
 
-
     fn memory_load(&self, address: u16) -> Result<u8, String>;
     fn memory_store(&mut self, address: u16, value: u8) -> Result<(), String>;
+
+    fn stack_load(&self, address: u8) -> u8;
+    fn stack_store(&mut self, address: u8, value: u8);
+
 }
 
 impl OktoInterfaceContext for OktoVM {
@@ -88,5 +90,13 @@ impl OktoInterfaceContext for OktoVM {
 
     fn memory_store(&mut self, address: u16, value: u8) -> Result<(), String> {
         self.memory_store(address, value)
+    }
+
+    fn stack_load(&self, address: u8) -> u8 {
+        self.memory_load_stack_value(address)
+    }
+
+    fn stack_store(&mut self, address: u8, value: u8) {
+        self.memory_store_stack_value(address, value);
     }
 }

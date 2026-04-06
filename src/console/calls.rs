@@ -1,3 +1,8 @@
+pub const OKTO_INPUT: u8 = 10;
+
+pub const OKTO_CLEAR: u8 = 40;
+pub const OKTO_PRESENT: u8 = 49;
+
 pub const OKTO_RENDER_LINE: u8 = 50;
 
 pub const OKTO_EXIT: u8 = 200;

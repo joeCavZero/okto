@@ -515,7 +515,7 @@ impl OktoCLI {
             .remove(OKTO_SECTION_CODE)
             .unwrap_or_default();
         let mut okto = OktoVM::from(code);
-
+        
         let color = sections
             .remove(OKTO_SECTION_COLOR)
             .unwrap_or_default();

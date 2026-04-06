@@ -211,6 +211,12 @@ impl OktoVM {
             self.interface = interface_option;
         }
 
+        let mut interface_option = self.interface.take();
+        if let Some(ref mut interface) = interface_option {
+            interface.exit(self);
+        }
+        self.interface = interface_option;
+
         Ok(())
     }
 }

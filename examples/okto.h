@@ -1,3 +1,10 @@
+@macro OKTO_INPUT 10
+
+@macro OKTO_CLEAR 40
+@macro OKTO_PRESENT 49
+
+@macro OKTO_RENDER_LINE 50
+
 @macro OKTO_EXIT 200
 
 @macro OKTO_PRINT_UNSIGNED 201

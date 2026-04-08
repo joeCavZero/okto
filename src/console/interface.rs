@@ -33,6 +33,12 @@ impl OktoInterface for OktoConsoleInterface {
                 );
             }
 
+            OKTO_RANDOM => {
+                o.set_reg_a(
+                    rand::random::<u8>(),
+                );
+            }
+
             OKTO_INPUT => {
                 o.set_reg_a( 
                     self.console.get_input(o.reg_a()),

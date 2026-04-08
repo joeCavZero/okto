@@ -1,4 +1,5 @@
 @macro OKTO_SLEEP 5
+@macro OKTO_RANDOM 6
 
 @macro OKTO_INPUT 10
 

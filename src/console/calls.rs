@@ -1,4 +1,5 @@
 pub const OKTO_SLEEP: u8 = 5;
+pub const OKTO_RANDOM: u8 = 6;
 pub const OKTO_INPUT: u8 = 10;
 
 pub const OKTO_CLEAR: u8 = 40;

@@ -1,9 +1,15 @@
+pub const OKTO_SLEEP: u8 = 5;
 pub const OKTO_INPUT: u8 = 10;
 
 pub const OKTO_CLEAR: u8 = 40;
 pub const OKTO_PRESENT: u8 = 49;
 
-pub const OKTO_RENDER_LINE: u8 = 50;
+pub const OKTO_RENDER_PIXEL: u8 = 50;
+pub const OKTO_RENDER_LINE: u8 = 51;
+pub const OKTO_RENDER_CIRCLE: u8 = 52;
+pub const OKTO_RENDER_RECT: u8 = 53;
+pub const OKTO_RENDER_TRIANGLE: u8 = 54;
+
 
 pub const OKTO_EXIT: u8 = 200;
 

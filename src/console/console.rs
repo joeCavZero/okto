@@ -143,7 +143,7 @@ impl OktoConsole {
         );
     }
 
-    pub fn update_frame(&mut self) {
+    pub fn present_frame(&mut self) {
         let window_size = self.get_window_size();
         let frame_size = Vector2::new(
             OKTO_CONSOLE_SCREEN_WIDTH as f32,
@@ -151,7 +151,7 @@ impl OktoConsole {
         );
 
         let mut d = self.raylib.begin_drawing(&self.raylib_tread);
-        d.clear_background(Color::BLUE);
+        d.clear_background(Color::BLACK);
 
         render_frame_on_draw_handle(&mut d, window_size, &self.frame, frame_size);
     }

@@ -50,26 +50,28 @@
 .code
 
 INIT:
-  li $c, COLOR_WHITE 
-  st $c, $sp                    # 255
-  PUSH_VALUE(BALL_RADIUS)       # 254
-  PUSH_VALUE(BALL_START_Y)      @macro BALL_Y_PTR 253
-  PUSH_VALUE(BALL_START_X)      @macro BALL_X_PTR 252
-  @macro BALL_PTR 252
+  li $c, 1                      
+  st $c, $sp                    @macro BALL_DY_PTR 255 
+  PUSH_VALUE(1)                 @macro BALL_DX_PTR 254
+  PUSH_VALUE(COLOR_WHITE)       # 253
+  PUSH_VALUE(BALL_RADIUS)       # 252
+  PUSH_VALUE(BALL_START_Y)      @macro BALL_Y_PTR 251
+  PUSH_VALUE(BALL_START_X)      @macro BALL_X_PTR 250
+  @macro BALL_PTR 250
 
-  PUSH_VALUE(COLOR_WHITE)       # 251
-  PUSH_VALUE(PADDLE_H)          # 250
-  PUSH_VALUE(PADDLE_W)          # 249
-  PUSH_VALUE(PADDLE_1_START_Y)  @macro PADDLE_1_Y_PTR 248
-  PUSH_VALUE(PADDLE_1_START_X)  @macro PADDLE_1_X_PTR 247
-  @macro PADDLE_1_PTR 247
+  PUSH_VALUE(COLOR_WHITE)       # 249
+  PUSH_VALUE(PADDLE_H)          # 248
+  PUSH_VALUE(PADDLE_W)          # 247
+  PUSH_VALUE(PADDLE_1_START_Y)  @macro PADDLE_1_Y_PTR 246
+  PUSH_VALUE(PADDLE_1_START_X)  @macro PADDLE_1_X_PTR 245
+  @macro PADDLE_1_PTR 245
 
-  PUSH_VALUE(COLOR_WHITE)       # 246
-  PUSH_VALUE(PADDLE_H)          # 245
-  PUSH_VALUE(PADDLE_W)          # 244
-  PUSH_VALUE(PADDLE_2_START_Y)  @macro PADDLE_2_Y_PTR 243
-  PUSH_VALUE(PADDLE_2_START_X)  @macro PADDLE_2_X_PTR 242
-  @macro PADDLE_2_PTR 242
+  PUSH_VALUE(COLOR_WHITE)       
+  PUSH_VALUE(PADDLE_H)          
+  PUSH_VALUE(PADDLE_W)          
+  PUSH_VALUE(PADDLE_2_START_Y)  @macro PADDLE_2_Y_PTR 241
+  PUSH_VALUE(PADDLE_2_START_X)  @macro PADDLE_2_X_PTR 240
+  @macro PADDLE_2_PTR 240
 
 GAME_LOOP:
 
@@ -94,6 +96,29 @@ UPDATE:
   PUSH_REG($a)
   PUSH_REG($b)
 
+  # ==== BALL ====
+    # Y
+      li $c, BALL_DY_PTR
+      ld $b, $c
+
+      li $c, BALL_Y_PTR
+      ld $a, $c
+
+      add
+
+      st $a, $c
+    # X
+      li $c, BALL_DX_PTR
+      ld $b, $c
+
+      li $c, BALL_X_PTR
+      ld $a, $c
+
+      add
+
+      st $a, $c
+    #
+  # ==== PADDLE 1 ====
   # input
     # input up
   li $c, OKTO_INPUT
@@ -136,7 +161,7 @@ UPDATE:
   UPDATE_INPUT_UP:
     li $c, PADDLE_1_Y_PTR
     ld $a, $c
-    li $b, 1
+    li $b, PADDLE_SPEED
     sub
     st $a, $c
 
@@ -146,12 +171,46 @@ UPDATE:
   UPDATE_INPUT_DOWN:
     li $c, PADDLE_1_Y_PTR
     ld $a, $c
-    li $b, 1
+    li $b, PADDLE_SPEED
     add
     st $a, $c
 
   UPDATE_NO_INPUT:
+  UPDATE_CHECK_BOUNDS:
+    # - - - - - - - -
+    # top
+    la UPDATE_CHECK_BOUNDS_NOT_SET_TO_TOP
+    swpx
 
+    li $c, PADDLE_1_Y_PTR
+    ld $a, $c
+      
+    li $b, PADDLE_MIN_Y
+
+    jgt # if a > b: goto
+
+    st $b, $c
+   UPDATE_CHECK_BOUNDS_NOT_SET_TO_TOP:
+    # - - - - - - - -
+    # bottom
+    la UPDATE_CHECK_BOUNDS_SET_TO_BOTTOM
+    swpx
+
+    li $c, PADDLE_1_Y_PTR
+    ld $a, $c
+      
+    li $b, PADDLE_MAX_Y
+
+    jgt # if a > b: goto
+
+    la UPDATE_CHECK_BOUNDS_NOT_SET_TO_BOTTOM
+    swpx
+    jmp
+   UPDATE_CHECK_BOUNDS_SET_TO_BOTTOM:
+    li $c, PADDLE_1_Y_PTR
+    li $a, PADDLE_MAX_Y
+    st $a, $c
+   UPDATE_CHECK_BOUNDS_NOT_SET_TO_BOTTOM:
   #
   POP_REG($b)
   POP_REG($a)

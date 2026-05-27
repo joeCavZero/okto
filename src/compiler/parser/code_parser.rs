@@ -109,9 +109,9 @@ pub fn parse_code_section(
                 | OktoInstruction::Shl
                 | OktoInstruction::Jmp
                 | OktoInstruction::Jeq
-                | OktoInstruction::Jneq
                 | OktoInstruction::Jgt
-                | OktoInstruction::Jlt
+                | OktoInstruction::Incsp
+                | OktoInstruction::Decsp
                 | OktoInstruction::Swpf
                 | OktoInstruction::Swpx
                 | OktoInstruction::Call => {

@@ -76,5 +76,4 @@ impl OktoVM {
             None => 0,
         }
     }
-
 }

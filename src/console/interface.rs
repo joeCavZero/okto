@@ -113,8 +113,8 @@ impl OktoInterface for OktoConsoleInterface {
                 let thickness = o.stack_load(thickness_ptr);
                 let color_ptr_value = o.stack_load(color_ptr);
 
-                let color = self.console.read_color_from_color_memory(color_ptr);
-
+                let color = self.console.read_color_from_color_memory(color_ptr_value);
+                
                 self.console.render_line(
                     x1,
                     y1,

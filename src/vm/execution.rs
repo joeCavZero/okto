@@ -145,14 +145,6 @@ impl OktoVM {
                         }
                     }
 
-                    OktoInstruction::Jneq => {
-                        if self.registers.a != self.registers.b {
-                            let tmp = self.registers.pc;
-                            self.registers.pc = self.registers.x;
-                            self.registers.x = tmp;
-                        }
-                    }
-
                     OktoInstruction::Jgt => {
                         if self.registers.a > self.registers.b {
                             let tmp = self.registers.pc;
@@ -161,12 +153,12 @@ impl OktoVM {
                         }
                     }
 
-                    OktoInstruction::Jlt => {
-                        if self.registers.a < self.registers.b {
-                            let tmp = self.registers.pc;
-                            self.registers.pc = self.registers.x;
-                            self.registers.x = tmp;
-                        }
+                    OktoInstruction::Incsp => {
+                        self.registers.sp = self.registers.sp.wrapping_add(1);
+                    }
+
+                    OktoInstruction::Decsp => {
+                        self.registers.sp = self.registers.sp.wrapping_sub(1);
                     }
 
                     OktoInstruction::Swpf => {
@@ -185,12 +177,18 @@ impl OktoVM {
 
                     OktoInstruction::Call => {
                         let mut interface_option = self.interface.take();
-                        if let Some(ref mut interface) = interface_option {
-                            if interface.call(self) == true {
-                                break 'execution_loop;
-                            }
-                        }
+
+                        let should_break = if let Some(ref mut interface) = interface_option {
+                            interface.call(self)
+                        } else {
+                            false
+                        };
+
                         self.interface = interface_option;
+
+                        if should_break {
+                            break 'execution_loop;
+                        }
                     }
 
                     _ => {
@@ -203,12 +201,18 @@ impl OktoVM {
             }
 
             let mut interface_option = self.interface.take();
-            if let Some(ref mut interface) = interface_option {
-                if interface.execution(self) == true {
-                    break 'execution_loop;
-                }
-            }
+
+            let should_break = if let Some(ref mut interface) = interface_option {
+                interface.execution(self)
+            } else {
+                false
+            };
+
             self.interface = interface_option;
+
+            if should_break {
+                break 'execution_loop;
+            }
         }
 
         let mut interface_option = self.interface.take();

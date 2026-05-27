@@ -1,31 +1,35 @@
 @include "okto.h"
 
-@macro INITIAL_VALUE 100    # initial counter value
+@macro INITIAL_VALUE 30
 
 .code
-    li $sp, INITIAL_VALUE       # SP = initial counter value
+    li $a, INITIAL_VALUE            # $a = INITIAL_VALUE
+    st $a, $sp                      # $a = *$sp
 
 LOOP:
-    mv $a, $sp                      # A = SP (copy counter to A)
-    li $c, OKTO_PRINTLN_UNSIGNED    # select print unsigned syscall
-    call                            # print A
+    ld $a, $sp                      # $a = *$sp
+    li $c, OKTO_PRINTLN_UNSIGNED    # prints $a
+    call                            # syscall
 
-    mv $a, $sp                 # A = SP (load counter again)
-    li $b, 1                   # B = 1 (decrement value)
-    sub                        # A = A - B (A = SP - 1)
-    mv $sp, $a                 # SP = A (update counter)
+    la END                          # (b:a) = END
+    swpx                            # x = (b:a)
 
-    la END                     # load address of END into B:A
-    swpx                       # move B:A into X (prepare jump target)
+    ld $a, $sp                      # $a = *$sp
+    li $b, 1                        # b = 1
+    sub                             # $a = $a - $b
 
-    swpf                       # swap A <-> F (F now holds result flags)
-    li $b, 1                   # B = 1 (compare value)
-    jeq                        # if F == B, jump to END (counter reached 0)
+    st $a, $sp                      # *$sp = $a
 
-    la LOOP                    # load address of LOOP into B:A
-    swpx                       # move B:A into X
-    jmp                        # jump to LOOP
+    swpf                            # b = f
+
+    li $a, 1                        # a = 1
+
+    jeq                             # if $a == $b, goto END
+
+    la LOOP                         # (b:a) = LOOP
+    swpx                            # x = (b:a)
+    jmp                             # goto x (which is loop)
 
 END:
-    li $c, OKTO_EXIT           # select exit syscall
-    call                       # terminate program
+    li $c, OKTO_EXIT                # c = OKTO_EXIT
+    call                            # syscall

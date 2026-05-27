@@ -7,11 +7,11 @@ const OKTO_CONSOLE_SCREEN_WIDTH: i32 = 240;
 const OKTO_CONSOLE_SCREEN_HEIGHT: i32 = 240;
 
 pub struct OktoConsole {
-    pub raylib: RaylibHandle,
-    pub raylib_tread: RaylibThread,
-
     pub frame: RenderTexture2D,
     pub canvas: RenderTexture2D,
+
+    pub raylib: RaylibHandle,
+    pub raylib_tread: RaylibThread,
 
     pub color_memory: [u8; MEMORY_SIZE_8],
     pub palette_memory: [u8; MEMORY_SIZE_8],

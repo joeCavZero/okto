@@ -84,6 +84,9 @@ Data directives such as `.byte`, `.double`, `.char`, `.string`, `.stringz`, and
 `.space` generate bytes for these sections. Numeric `.double` values are stored
 in Big Endian order, with the most significant byte first.
 
+You can read more about these sections and directives in the
+[directives documentation](/docs/directives.md).
+
 ## Example of Memory Usage
 
 ```python
@@ -110,3 +113,6 @@ After the `st` instruction runs, the value `72` is stored at stack offset
 
 > For more on pseudo-instruction expansion, see the
 > [pseudo-instructions documentation](/docs/pseudo-instructions.md).
+>
+> For include files and macros used before parsing, see the
+> [processors documentation](/docs/processors.md).

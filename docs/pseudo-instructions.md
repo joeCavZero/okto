@@ -192,3 +192,7 @@ fits the intended use.
 You can read more about native instructions in the
 [instructions documentation](/docs/instructions.md) and about binary layouts in
 the [formats documentation](/docs/formats.md).
+
+For assembly-time token replacement, include files, and multi-line macros, see
+the [processors documentation](/docs/processors.md). For section and data
+directives, see the [directives documentation](/docs/directives.md).

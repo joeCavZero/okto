@@ -29,6 +29,8 @@ To learn about the OKTO assembly language, read:
 
 - [Instructions](/docs/instructions.md): Learn about all native OKTO instructions.
 - [Pseudo-Instructions](/docs/pseudo-instructions.md): Learn how higher-level assembly commands expand into native instructions.
+- [Processors](/docs/processors.md): Learn how `@include`, `@macro`, and `@once` rewrite assembly before parsing.
+- [Directives](/docs/directives.md): Learn about `.code`, data sections, and data-producing directives.
 - [Instruction Formats](/docs/formats.md): Understand the binary structure used to encode instructions.
 - [Registers](/docs/registers.md): Understand the general and special registers used by the VM.
 

@@ -1,0 +1,210 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "okto assembly",
+  "scopeName": "source.okto",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#chars"
+    },
+    {
+      "include": "#processors"
+    },
+    {
+      "include": "#directives"
+    },
+    {
+      "include": "#labels"
+    },
+    {
+      "include": "#registers"
+    },
+    {
+      "include": "#instructions"
+    },
+    {
+      "include": "#pseudoInstructions"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#macroArguments"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.okto",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.block.okto",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.okto",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.okto",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.special.okto",
+          "begin": "s\"",
+          "end": "\"s",
+          "patterns": [
+            {
+              "name": "constant.character.escape.okto",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "chars": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.okto",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.okto",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "processors": {
+      "patterns": [
+        {
+          "name": "keyword.control.processor.okto",
+          "match": "\\B@(include|macro|once)\\b"
+        },
+        {
+          "name": "keyword.control.processor.unknown.okto",
+          "match": "\\B@[A-Za-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "keyword.other.directive.okto",
+          "match": "(?<![A-Za-z0-9_$])\\.[A-Za-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        {
+          "name": "entity.name.label.okto",
+          "match": "^\\s*[A-Za-z_][A-Za-z0-9_]*:"
+        }
+      ]
+    },
+    "registers": {
+      "patterns": [
+        {
+          "name": "variable.language.register.general.okto",
+          "match": "\\$(a|b|c|sp)\\b"
+        },
+        {
+          "name": "variable.language.register.special.okto",
+          "match": "\\$(f|x|pc|ir)\\b"
+        },
+        {
+          "name": "variable.other.register.okto",
+          "match": "\\$[A-Za-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "instructions": {
+      "patterns": [
+        {
+          "name": "keyword.mnemonic.native.okto",
+          "match": "\\b(lli|lai|lxi|mv|ld|st|add|sub|and|or|xor|not|shr|shl|jmp|jeq|jgt|incsp|decsp|swpf|swpx|call)\\b"
+        }
+      ]
+    },
+    "pseudoInstructions": {
+      "patterns": [
+        {
+          "name": "keyword.mnemonic.pseudo.okto",
+          "match": "\\b(nope|li|lchr|lla|laa|la)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.binary.okto",
+          "match": "\\b0b[01_]+\\b"
+        },
+        {
+          "name": "constant.numeric.hex.okto",
+          "match": "\\b0x[0-9A-Fa-f_]+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.okto",
+          "match": "\\b[0-9][0-9_]*\\b"
+        }
+      ]
+    },
+    "macroArguments": {
+      "patterns": [
+        {
+          "name": "variable.parameter.macro.okto",
+          "match": "%[A-Za-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.other.symbol.okto",
+          "match": "\\b[A-Z][A-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.separator.comma.okto",
+          "match": ","
+        },
+        {
+          "name": "punctuation.definition.group.okto",
+          "match": "[()]"
+        },
+        {
+          "name": "constant.character.escape.line-continuation.okto",
+          "match": "\\\\$"
+        }
+      ]
+    }
+  }
+}

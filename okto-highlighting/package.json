@@ -1,0 +1,45 @@
+{
+  "name": "okto-highlighting",
+  "displayName": "Okto Highlighting",
+  "description": "Syntax highlighting support for the Okto Assembly language",
+  "version": "0.0.1",
+  "publisher": "joeCavZero",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.120.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "okto",
+    "assembly",
+    "fantasy-console",
+    "vm",
+    "asm"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "okto",
+        "aliases": [
+          "Okto",
+          "Okto Assembly"
+        ],
+        "extensions": [
+          ".okto",
+          ".asm",
+          ".s"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "okto",
+        "scopeName": "source.okto",
+        "path": "./syntaxes/oktoasm.tmLanguage.json"
+      }
+    ]
+  }
+}

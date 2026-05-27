@@ -102,3 +102,7 @@ Formats categorize instructions by their structure and usage. See the
 
 Pseudo-instructions can be found in the
 [pseudo-instructions documentation](/docs/pseudo-instructions.md).
+
+For register details, see the [registers documentation](/docs/registers.md).
+For section and data syntax, see the
+[directives documentation](/docs/directives.md).

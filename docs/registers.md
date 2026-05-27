@@ -177,3 +177,7 @@ depend on.
 
 You can read more about the instruction behavior in the
 [instructions documentation](/docs/instructions.md).
+
+For the binary encoding of register operands, see the
+[formats documentation](/docs/formats.md). For stack memory details, see the
+[memory documentation](/docs/memory.md).

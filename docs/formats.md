@@ -177,3 +177,8 @@ register-register, and no-operand instructions inside a single byte.
 
 > For a list of which instructions use each format, see the
 > [instructions documentation](/docs/instructions.md).
+>
+> For pseudo-instruction expansion, see the
+> [pseudo-instructions documentation](/docs/pseudo-instructions.md). For
+> register codes and register behavior, see the
+> [registers documentation](/docs/registers.md).

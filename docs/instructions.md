@@ -22,8 +22,8 @@ including their formats, descriptions, and syntax.
 | **jmp**     | Gamma  | `jmp`           | Jumps to the address in `$x`, then stores the next instruction address in `$x`. |
 | **jeq**     | Gamma  | `jeq`           | If `$a` equals `$b`, jumps through `$x` like `jmp`.                         |
 | **jgt**     | Gamma  | `jgt`           | If `$a` is greater than `$b`, jumps through `$x` like `jmp`.                |
-| **incsp**   | Gamma  | `incsp`         | Increments `$sp` with wrapping arithmetic.                                  |
-| **decsp**   | Gamma  | `decsp`         | Decrements `$sp` with wrapping arithmetic.                                  |
+| **incsp**   | Gamma  | `incsp`         | Increments `$sp` with wrapping arithmetic; carry is stored in `$f`.         |
+| **decsp**   | Gamma  | `decsp`         | Decrements `$sp` with wrapping arithmetic; borrow is stored in `$f`.        |
 | **swpf**    | Gamma  | `swpf`          | Swaps `$f` and `$b`.                                                        |
 | **swpx**    | Gamma  | `swpx`          | Swaps `$x` with the 16-bit value formed by `$b:$a`.                         |
 | **call**    | Gamma  | `call`          | Calls the attached VM interface; the operation is usually selected by `$c`. |

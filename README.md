@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/images/okto-mascot.png" width="300" />
+  <img src="docs/images/okto-mascot.png" width="500" />
 </div>
 
 <h1 align="center">OKTO</h1>
@@ -9,7 +9,7 @@ small programs, experiments, and games.
 
 ---
 
-## Idea
+## The Idea
 
 **OKTO** is built around a compact 8-bit instruction set where each native
 instruction fits in a single byte. Programs are written in OKTO assembly,

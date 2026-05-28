@@ -154,11 +154,15 @@ impl OktoVM {
                     }
 
                     OktoInstruction::Incsp => {
-                        self.registers.sp = self.registers.sp.wrapping_add(1);
+                        let (result, carry) = self.registers.sp.overflowing_add(1);
+                        self.registers.sp = result;
+                        self.registers.f = if carry { 1 } else { 0 };
                     }
 
                     OktoInstruction::Decsp => {
-                        self.registers.sp = self.registers.sp.wrapping_sub(1);
+                        let (result, carry) = self.registers.sp.overflowing_sub(1);
+                        self.registers.sp = result;
+                        self.registers.f = if carry { 1 } else { 0 };
                     }
 
                     OktoInstruction::Swpf => {

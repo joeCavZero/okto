@@ -111,9 +111,9 @@ operands in assembly code.
 
 The `$f` register stores status information produced by some operations.
 
-The `add` instruction stores `1` in `$f` when addition overflows, and `0`
-otherwise. The `sub` instruction stores `1` in `$f` when subtraction borrows,
-and `0` otherwise.
+The `add` and `incsp` instructions store `1` in `$f` when addition overflows,
+and `0` otherwise. The `sub` and `decsp` instructions store `1` in `$f` when
+subtraction borrows, and `0` otherwise.
 
 Shift instructions store the shifted-out bits in `$f`.
 
